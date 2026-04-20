@@ -1,0 +1,75 @@
+@page "/rent-records/tenant/{TenantId:int}"
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<PageTitle>Tenant Ledger</PageTitle>
+
+@if (_tenant == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudText Typo="Typo.h5">Ledger — @_tenant.FullName</MudText>
+        <MudSpacer />
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                   OnClick="ExportCsv" StartIcon="@Icons.Material.Filled.Download">Export CSV</MudButton>
+    </MudStack>
+
+    <LedgerTable Rows="@_rows" />
+
+    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+        <MudChip T="string" Color="@(_balance <= 0 ? Color.Success : Color.Error)">
+            Balance: @_balance.ToString("C")
+        </MudChip>
+    </MudStack>
+}
+
+@code {
+    [Parameter] public int TenantId { get; set; }
+
+    TenantDto? _tenant;
+    List<LedgerRow>? _rows;
+    decimal _balance;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _tenant = await Http.GetFromJsonAsync<TenantDto>($"api/tenants/{TenantId}");
+        var schedules = await Http.GetFromJsonAsync<List<RentScheduleDto>>($"api/rentschedules?tenantId={TenantId}");
+        var payments = await Http.GetFromJsonAsync<List<RentPaymentDto>>($"api/rentpayments?tenantId={TenantId}");
+
+        _rows = new();
+        decimal running = 0;
+
+        // combine and sort by date
+        var entries = new List<(DateTime Date, string Desc, decimal Charge, decimal Payment)>();
+        foreach (var s in schedules ?? new())
+        {
+            entries.Add((s.DueDate, "Monthly Rent", s.BaseRent, 0));
+            if (s.LateFee > 0)
+                entries.Add((s.DueDate, "Late Fee", s.LateFee, 0));
+        }
+        foreach (var p in payments ?? new())
+        {
+            entries.Add((p.PaymentDate, $"{p.PaymentMethod} Payment", 0, p.AmountPaid));
+        }
+
+        foreach (var e in entries.OrderBy(x => x.Date))
+        {
+            running += e.Charge - e.Payment;
+            _rows.Add(new LedgerRow { Date = e.Date, Description = e.Desc, Charge = e.Charge, Payment = e.Payment, Balance = running });
+        }
+        _balance = running;
+    }
+
+    async Task ExportCsv()
+    {
+        // build CSV client-side from rows we already have
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("Date,Description,Charge,Payment,Balance");
+        foreach (var r in _rows ?? new())
+            sb.AppendLine($"{r.Date:yyyy-MM-dd},{r.Description},{r.Charge:F2},{r.Payment:F2},{r.Balance:F2}");
+        await JS.InvokeVoidAsync("downloadFile", $"ledger-tenant-{TenantId}.csv", sb.ToString(), "text/csv");
+    }
+}

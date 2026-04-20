@@ -1,0 +1,128 @@
+@page "/maintenance/{ProjectId:int}"
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Maintenance Detail</PageTitle>
+
+@if (_project == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    <MudText Typo="Typo.h5" Class="mb-2">@_project.Title</MudText>
+    <MudText Typo="Typo.body2" Class="mb-3">@_project.PropertyAddress — Vendor: @_project.Vendor</MudText>
+
+    <ProjectStatusStepper CurrentStatus="@_project.Status" OnStatusChange="HandleStatusChange" />
+
+    <MudGrid Class="mt-3">
+        <MudItem xs="12" md="6">
+            <MudCard>
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.subtitle1">Bid Details</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudTextField @bind-Value="_project.Vendor" Label="Vendor" Class="mb-2" />
+                    <MudNumericField @bind-Value="_project.BidAmount" Label="Bid Amount ($)" Min="0m" Format="F2" />
+                </MudCardContent>
+                <MudCardActions>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveProject">Save</MudButton>
+                    @if (_project.Status == "Bid")
+                    {
+                        <MudButton Variant="Variant.Outlined" Color="Color.Success" OnClick="@(() => HandleStatusChange("Approved"))" Class="ml-2">Approve Bid</MudButton>
+                    }
+                </MudCardActions>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudCard>
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.subtitle1">Invoice</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    @if (_project.LinkedInvoiceId.HasValue)
+                    {
+                        <MudButton Href="@($"/invoicing/{_project.LinkedInvoiceId}")" Variant="Variant.Outlined">View Invoice</MudButton>
+                    }
+                    else
+                    {
+                        <MudText Color="Color.Secondary">No invoice linked yet.</MudText>
+                        <MudButton Href="/invoicing/create" Variant="Variant.Outlined" Color="Color.Primary" Class="mt-2">Create Invoice</MudButton>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudCard>
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.subtitle1">Work Logs</MudText>
+                    </CardHeaderContent>
+                    <CardHeaderActions>
+                        <MudButton Href="@($"/maintenance/{ProjectId}/worklog")" Variant="Variant.Outlined" Size="Size.Small">Add Work Log</MudButton>
+                    </CardHeaderActions>
+                </MudCardHeader>
+                <MudCardContent>
+                    @if (_workLogs == null || !_workLogs.Any())
+                    {
+                        <MudText Color="Color.Secondary">No work logs yet.</MudText>
+                    }
+                    else
+                    {
+                        <MudTable Items="@_workLogs" Dense="true" Hover="true">
+                            <HeaderContent>
+                                <MudTh>Clock In</MudTh>
+                                <MudTh>Clock Out</MudTh>
+                                <MudTh>Hours</MudTh>
+                                <MudTh>GPS</MudTh>
+                                <MudTh>Category</MudTh>
+                                <MudTh>Notes</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@context.ClockIn.ToString("MMM d h:mm tt")</MudTd>
+                                <MudTd>@(context.ClockOut?.ToString("h:mm tt") ?? "—")</MudTd>
+                                <MudTd>@context.Hours.ToString("F1")</MudTd>
+                                <MudTd>@(string.IsNullOrEmpty(context.GpsLocation) ? "—" : context.GpsLocation)</MudTd>
+                                <MudTd>@context.PhotoCategory</MudTd>
+                                <MudTd>@context.Notes</MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public int ProjectId { get; set; }
+    MaintenanceProjectDto? _project;
+    List<WorkLogDto>? _workLogs;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _project = await Http.GetFromJsonAsync<MaintenanceProjectDto>($"api/maintenanceprojects/{ProjectId}");
+        _workLogs = await Http.GetFromJsonAsync<List<WorkLogDto>>($"api/worklogs?projectId={ProjectId}");
+    }
+
+    async Task HandleStatusChange(string newStatus)
+    {
+        if (_project == null) return;
+        _project.Status = newStatus;
+        await SaveProject();
+    }
+
+    async Task SaveProject()
+    {
+        if (_project == null) return;
+        await Http.PutAsJsonAsync($"api/maintenanceprojects/{ProjectId}", _project);
+        Snackbar.Add("Project updated!", Severity.Success);
+    }
+}

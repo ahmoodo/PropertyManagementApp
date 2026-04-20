@@ -1,0 +1,39 @@
+@page "/eviction-prep/templates"
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<PageTitle>Notice Templates</PageTitle>
+<DisclaimerBanner />
+<MudText Typo="Typo.h5" Class="mb-4">Notice Template Library</MudText>
+
+@if (_templates == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    @foreach (var t in _templates)
+    {
+        <MudExpansionPanel Text="@t.Title" Class="mb-2">
+            <MudText Typo="Typo.caption" Color="Color.Secondary">@t.Description</MudText>
+            <MudTextField @bind-Value="t.Body" Label="Template Body" Lines="8" Variant="Variant.Outlined" Class="my-2" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                       OnClick="@(() => UpdateTemplate(t))">Save</MudButton>
+        </MudExpansionPanel>
+    }
+}
+
+@code {
+    List<EvictionTemplateDto>? _templates;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _templates = await Http.GetFromJsonAsync<List<EvictionTemplateDto>>("api/evictiontemplates");
+    }
+
+    async Task UpdateTemplate(EvictionTemplateDto t)
+    {
+        await Http.PutAsJsonAsync($"api/evictiontemplates/{t.Id}", t);
+        Snackbar.Add($"Template '{t.Title}' saved!", Severity.Success);
+    }
+}

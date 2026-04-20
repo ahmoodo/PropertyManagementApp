@@ -1,0 +1,59 @@
+@page "/rent-records"
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<PageTitle>Rent Records</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">Rent Records</MudText>
+
+@if (_tenants == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    <MudTable Items="@_tenants" Hover="true" Dense="true">
+        <HeaderContent>
+            <MudTh>Tenant</MudTh>
+            <MudTh>Unit</MudTh>
+            <MudTh>Property</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            @{var tid = context.Id;}
+            <MudTd>@context.FullName</MudTd>
+            <MudTd>@context.Unit</MudTd>
+            <MudTd>@GetProperty(context.PropertyId)</MudTd>
+            <MudTd>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Primary"
+                           OnClick="@(() => Nav.NavigateTo($"/rent-records/tenant/{tid}"))">View Ledger</MudButton>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small" Color="Color.Secondary" Class="ml-1"
+                           OnClick="@(() => Nav.NavigateTo($"/rent-records/statement/{tid}"))">Statement</MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+
+    <MudText Typo="Typo.h6" Class="mt-6 mb-2">By Property</MudText>
+    <MudStack Row="true" Wrap="Wrap.Wrap">
+        @foreach (var p in _properties ?? new())
+        {
+            var pid = p.Id;
+            <MudButton Variant="Variant.Outlined" Color="Color.Secondary"
+                       OnClick="@(() => Nav.NavigateTo($"/rent-records/property/{pid}"))">
+                @p.Name
+            </MudButton>
+        }
+    </MudStack>
+}
+
+@code {
+    List<TenantDto>? _tenants;
+    List<PropertyDto>? _properties;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _tenants = await Http.GetFromJsonAsync<List<TenantDto>>("api/tenants");
+        _properties = await Http.GetFromJsonAsync<List<PropertyDto>>("api/properties");
+    }
+
+    string GetProperty(int id) => _properties?.FirstOrDefault(p => p.Id == id)?.Name ?? "—";
+}

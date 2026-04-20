@@ -1,0 +1,91 @@
+@page "/eviction-prep/{CaseId:int}"
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Eviction Case Detail</PageTitle>
+<DisclaimerBanner />
+
+@if (_case == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    <MudText Typo="Typo.h5" Class="mb-1">Case #@_case.Id — @_case.TenantName</MudText>
+    <MudText Typo="Typo.body2" Class="mb-4">@_case.PropertyAddress | Opened @_case.CaseOpenDate.ToString("MMM d, yyyy") | @_case.DaysElapsed days elapsed</MudText>
+
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudCard>
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.subtitle1">Eviction Timeline</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <EvictionTimeline Steps="@_case.Steps" OnStepToggle="ToggleStep" />
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudCard>
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.subtitle1">Documents & Notices</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    @if (_case.Notices.Any())
+                    {
+                        <MudList T="EvictionNoticeDto" Dense="true">
+                            @foreach (var n in _case.Notices)
+                            {
+                                <MudListItem T="EvictionNoticeDto">
+                                    <MudText Typo="Typo.body2"><b>@n.Type</b> — @n.CreatedAt.ToString("MMM d, yyyy")</MudText>
+                                    <MudText Typo="Typo.caption">Delivery: @n.DeliveryMethod</MudText>
+                                </MudListItem>
+                            }
+                        </MudList>
+                    }
+                    else
+                    {
+                        <MudText Color="Color.Secondary" Class="mb-3">No notices generated yet.</MudText>
+                    }
+
+                    <MudDivider Class="my-3" />
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Generate a Notice</MudText>
+                    <MudStack Row="true" Wrap="Wrap.Wrap">
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined"
+                                   Href="@($"/eviction-prep/{CaseId}/notice/late-rent-notice")">Late Rent Notice</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined"
+                                   Href="@($"/eviction-prep/{CaseId}/notice/pay-or-quit-3day")">3-Day Pay or Quit</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined"
+                                   Href="@($"/eviction-prep/{CaseId}/notice/pay-or-quit-5day")">5-Day Pay or Quit</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined"
+                                   Href="@($"/eviction-prep/{CaseId}/notice/unconditional-quit")">Unconditional Quit</MudButton>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public int CaseId { get; set; }
+    EvictionCaseDto? _case;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _case = await Http.GetFromJsonAsync<EvictionCaseDto>($"api/evictioncases/{CaseId}");
+    }
+
+    async Task ToggleStep(EvictionStepDto step)
+    {
+        await Http.PutAsync($"api/evictioncases/{CaseId}/steps/{step.Id}", null);
+        step.IsComplete = !step.IsComplete;
+        step.CompletedAt = step.IsComplete ? DateTime.Now : null;
+        Snackbar.Add(step.IsComplete ? $"Step completed: {step.Label}" : "Step unchecked", Severity.Info);
+    }
+}

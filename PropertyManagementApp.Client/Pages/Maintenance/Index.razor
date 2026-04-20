@@ -1,0 +1,85 @@
+@page "/maintenance"
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Maintenance Projects</PageTitle>
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">Maintenance Projects</MudText>
+    <MudSpacer />
+    <MudButton Href="/maintenance/create" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">New Project</MudButton>
+</MudStack>
+
+@if (_projects == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    <MudGrid>
+        @foreach (var col in _columns)
+        {
+            var status = col.Status;
+            var color = col.Color;
+            <MudItem xs="12" sm="6" md="2">
+                <MudPaper Class="pa-2" Style="min-height:350px;">
+                    <MudChip T="string" Color="@color" Class="mb-2 d-block" Style="width:100%; justify-content:center;">@status</MudChip>
+                    @foreach (var proj in _projects.Where(p => p.Status == status))
+                    {
+                        var localProj = proj;
+                        <MudCard Class="mb-2">
+                            <MudCardContent Class="pa-2">
+                                <MudText Typo="Typo.subtitle2">@localProj.Title</MudText>
+                                <MudText Typo="Typo.caption">@localProj.PropertyAddress</MudText>
+                                <MudText Typo="Typo.caption">Vendor: @localProj.Vendor</MudText>
+                                <MudText Typo="Typo.caption">Bid: @localProj.BidAmount.ToString("C")</MudText>
+                            </MudCardContent>
+                            <MudCardActions Class="pa-1">
+                                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small"
+                                               OnClick="@(() => Nav.NavigateTo($"/maintenance/{localProj.Id}"))" />
+                                @if (status == "Bid")
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.ThumbUp" Size="Size.Small" Color="Color.Success"
+                                                   OnClick="@(() => AdvanceStatus(localProj, "Approved"))" Title="Approve Bid" />
+                                }
+                                @if (status == "Approved")
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Filled.Assignment" Size="Size.Small" Color="Color.Warning"
+                                                   OnClick="@(() => AdvanceStatus(localProj, "Work Order"))" Title="Create Work Order" />
+                                }
+                            </MudCardActions>
+                        </MudCard>
+                    }
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@code {
+    List<MaintenanceProjectDto>? _projects;
+
+    record StatusColumn(string Status, Color Color);
+
+    static readonly List<StatusColumn> _columns = new()
+    {
+        new("Bid", Color.Warning),
+        new("Approved", Color.Info),
+        new("Work Order", Color.Secondary),
+        new("Invoiced", Color.Tertiary),
+        new("Closed", Color.Success),
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _projects = await Http.GetFromJsonAsync<List<MaintenanceProjectDto>>("api/maintenanceprojects");
+    }
+
+    async Task AdvanceStatus(MaintenanceProjectDto proj, string newStatus)
+    {
+        proj.Status = newStatus;
+        await Http.PutAsJsonAsync($"api/maintenanceprojects/{proj.Id}", proj);
+        Snackbar.Add($"Project moved to {newStatus}", Severity.Success);
+        _projects = await Http.GetFromJsonAsync<List<MaintenanceProjectDto>>("api/maintenanceprojects");
+    }
+}

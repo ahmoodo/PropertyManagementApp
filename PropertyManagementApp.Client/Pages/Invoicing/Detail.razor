@@ -1,0 +1,116 @@
+@page "/invoicing/{InvoiceId:int}"
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+
+<PageTitle>Invoice Detail</PageTitle>
+
+@if (_invoice == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    <div class="print-only">
+        <div style="max-width:700px; margin:auto; font-family:Arial; padding:24px;">
+            <h2>Invoice @_invoice.InvoiceNumber</h2>
+            <p>Date: @_invoice.InvoiceDate.ToString("MMMM d, yyyy") | Due: @_invoice.DueDate.ToString("MMMM d, yyyy")</p>
+            <p>Bill To: @_invoice.CustomerName</p>
+            <hr/>
+            <table style="width:100%; border-collapse:collapse;">
+                <tr style="background:#eee;"><th style="padding:8px;">Description</th><th>Qty</th><th>Unit Price</th><th>Total</th></tr>
+                @foreach (var item in _invoice.LineItems)
+                {
+                    <tr>
+                        <td style="padding:8px;">@item.Description</td>
+                        <td style="padding:8px;">@item.Quantity</td>
+                        <td style="padding:8px;">@item.UnitPrice.ToString("C")</td>
+                        <td style="padding:8px;">@item.Total.ToString("C")</td>
+                    </tr>
+                }
+                <tr style="font-weight:bold;">
+                    <td colspan="3" style="padding:8px; text-align:right;">Total</td>
+                    <td style="padding:8px;">@_invoice.TotalAmount.ToString("C")</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="no-print">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+            <MudText Typo="Typo.h5">@_invoice.InvoiceNumber</MudText>
+            <InvoiceStatusBadge Status="@_invoice.Status" />
+            <MudSpacer />
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Print" OnClick="Print">Print</MudButton>
+            @if (_invoice.Status == "Draft" || _invoice.Status == "Sent")
+            {
+                <MudButton Variant="Variant.Outlined" Color="Color.Info" OnClick="Send" Class="ml-2">Send Invoice</MudButton>
+            }
+            @if (_invoice.Status is "Sent" or "Overdue")
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="MarkPaid" Class="ml-2">Mark Paid</MudButton>
+            }
+        </MudStack>
+
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudText><b>Bill To:</b> @_invoice.CustomerName</MudText>
+                <MudText><b>Property:</b> @_invoice.PropertyAddress</MudText>
+                <MudText><b>Date:</b> @_invoice.InvoiceDate.ToString("MMM d, yyyy")</MudText>
+                <MudText><b>Due:</b> @_invoice.DueDate.ToString("MMM d, yyyy")</MudText>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudText Typo="Typo.h5">Total: @_invoice.TotalAmount.ToString("C")</MudText>
+                @if (!string.IsNullOrEmpty(_invoice.Notes))
+                {
+                    <MudText Typo="Typo.caption">@_invoice.Notes</MudText>
+                }
+            </MudItem>
+        </MudGrid>
+
+        <MudDivider Class="my-3" />
+        <MudTable Items="@_invoice.LineItems" Dense="true" Hover="true">
+            <HeaderContent>
+                <MudTh>Description</MudTh>
+                <MudTh>Type</MudTh>
+                <MudTh>Qty</MudTh>
+                <MudTh>Unit Price</MudTh>
+                <MudTh>Total</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.Description</MudTd>
+                <MudTd>@context.Type</MudTd>
+                <MudTd>@context.Quantity</MudTd>
+                <MudTd>@context.UnitPrice.ToString("C")</MudTd>
+                <MudTd>@context.Total.ToString("C")</MudTd>
+            </RowTemplate>
+        </MudTable>
+    </div>
+}
+
+@code {
+    [Parameter] public int InvoiceId { get; set; }
+    InvoiceDto? _invoice;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _invoice = await Http.GetFromJsonAsync<InvoiceDto>($"api/invoices/{InvoiceId}");
+    }
+
+    async Task Send()
+    {
+        await Http.PostAsync($"api/invoices/{InvoiceId}/send", null);
+        _invoice!.Status = "Sent";
+        Snackbar.Add("Invoice sent!", Severity.Info);
+    }
+
+    async Task MarkPaid()
+    {
+        var payment = new { PaymentMethod = "Manual", Amount = _invoice!.TotalAmount, Reference = "" };
+        await Http.PostAsJsonAsync($"api/invoices/{InvoiceId}/payments", payment);
+        _invoice!.Status = "Paid";
+        Snackbar.Add("Invoice marked as paid!", Severity.Success);
+    }
+
+    async Task Print() => await JS.InvokeVoidAsync("printPage");
+}

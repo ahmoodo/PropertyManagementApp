@@ -1,0 +1,61 @@
+@* reusable add/edit/remove invoice line items table *@
+
+<MudTable Items="@Items" Dense="true" Hover="true">
+    <HeaderContent>
+        <MudTh>Description</MudTh>
+        <MudTh>Type</MudTh>
+        <MudTh>Qty</MudTh>
+        <MudTh>Unit Price</MudTh>
+        <MudTh>Total</MudTh>
+        <MudTh></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>
+            <MudTextField @bind-Value="context.Description" Variant="Variant.Text" Dense="true" />
+        </MudTd>
+        <MudTd>
+            <MudSelect @bind-Value="context.Type" Dense="true" Variant="Variant.Text">
+                <MudSelectItem Value="@("Labor")">Labor</MudSelectItem>
+                <MudSelectItem Value="@("Material")">Material</MudSelectItem>
+                <MudSelectItem Value="@("Other")">Other</MudSelectItem>
+            </MudSelect>
+        </MudTd>
+        <MudTd>
+            <MudNumericField @bind-Value="context.Quantity" Min="0.01m" Dense="true" Variant="Variant.Text" />
+        </MudTd>
+        <MudTd>
+            <MudNumericField @bind-Value="context.UnitPrice" Min="0m" Dense="true" Variant="Variant.Text" Format="F2" />
+        </MudTd>
+        <MudTd>@context.Total.ToString("C")</MudTd>
+        <MudTd>
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                           OnClick="@(() => RemoveItem(context))" />
+        </MudTd>
+    </RowTemplate>
+    <FooterContent>
+        <MudTd colspan="6">
+            <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Text" Color="Color.Primary"
+                       OnClick="AddItem">Add Line Item</MudButton>
+            <MudText Typo="Typo.subtitle2" Class="float-end mr-4 mt-2">
+                Subtotal: @Items.Sum(i => i.Total).ToString("C")
+            </MudText>
+        </MudTd>
+    </FooterContent>
+</MudTable>
+
+@code {
+    [Parameter] public List<InvoiceLineItemDto> Items { get; set; } = new();
+    [Parameter] public EventCallback ItemsChanged { get; set; }
+
+    void AddItem()
+    {
+        Items.Add(new InvoiceLineItemDto { Description = "", Type = "Labor", Quantity = 1, UnitPrice = 0 });
+        ItemsChanged.InvokeAsync();
+    }
+
+    void RemoveItem(InvoiceLineItemDto item)
+    {
+        Items.Remove(item);
+        ItemsChanged.InvokeAsync();
+    }
+}

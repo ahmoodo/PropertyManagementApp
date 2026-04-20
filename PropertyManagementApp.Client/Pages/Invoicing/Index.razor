@@ -1,0 +1,113 @@
+@page "/invoicing"
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Invoicing</PageTitle>
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">Invoices</MudText>
+    <MudSpacer />
+    <MudButton Href="/invoicing/create" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">New Invoice</MudButton>
+</MudStack>
+
+@* summary cards *@
+<MudGrid Class="mb-4">
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard><MudCardContent>
+            <MudText Typo="Typo.caption">Total Invoiced</MudText>
+            <MudText Typo="Typo.h6">@_totalInvoiced.ToString("C")</MudText>
+        </MudCardContent></MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard><MudCardContent>
+            <MudText Typo="Typo.caption">Collected (Paid)</MudText>
+            <MudText Typo="Typo.h6" Style="color:#388e3c;">@_collected.ToString("C")</MudText>
+        </MudCardContent></MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard><MudCardContent>
+            <MudText Typo="Typo.caption">Outstanding</MudText>
+            <MudText Typo="Typo.h6">@_outstanding.ToString("C")</MudText>
+        </MudCardContent></MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard><MudCardContent>
+            <MudText Typo="Typo.caption">Overdue</MudText>
+            <MudText Typo="Typo.h6" Style="color:#d32f2f;">@_overdueCount</MudText>
+        </MudCardContent></MudCard>
+    </MudItem>
+</MudGrid>
+
+@if (_invoices == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    <MudTable Items="@_invoices" Hover="true" Dense="true">
+        <HeaderContent>
+            <MudTh>Invoice #</MudTh>
+            <MudTh>Date</MudTh>
+            <MudTh>Customer</MudTh>
+            <MudTh>Amount</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.InvoiceNumber</MudTd>
+            <MudTd>@context.InvoiceDate.ToString("MMM d, yyyy")</MudTd>
+            <MudTd>@context.CustomerName</MudTd>
+            <MudTd>@context.TotalAmount.ToString("C")</MudTd>
+            <MudTd><InvoiceStatusBadge Status="@context.Status" /></MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="Color.Primary"
+                               OnClick="@(() => Nav.NavigateTo($"/invoicing/{context.Id}"))" />
+                @if (context.Status == "Draft")
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.Send" Size="Size.Small" Color="Color.Info"
+                                   OnClick="@(() => SendInvoice(context))" Title="Send" />
+                }
+                @if (context.Status is "Sent" or "Overdue")
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Color="Color.Success"
+                                   OnClick="@(() => MarkPaid(context))" Title="Mark Paid" />
+                }
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    List<InvoiceDto>? _invoices;
+    decimal _totalInvoiced, _collected, _outstanding;
+    int _overdueCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _invoices = await Http.GetFromJsonAsync<List<InvoiceDto>>("api/invoices");
+        if (_invoices != null)
+        {
+            _totalInvoiced = _invoices.Sum(i => i.TotalAmount);
+            _collected = _invoices.Where(i => i.Status == "Paid").Sum(i => i.TotalAmount);
+            _outstanding = _invoices.Where(i => i.Status is "Sent" or "Overdue").Sum(i => i.TotalAmount);
+            _overdueCount = _invoices.Count(i => i.Status == "Overdue");
+        }
+    }
+
+    async Task SendInvoice(InvoiceDto inv)
+    {
+        await Http.PostAsync($"api/invoices/{inv.Id}/send", null);
+        inv.Status = "Sent";
+        Snackbar.Add($"Invoice {inv.InvoiceNumber} sent!", Severity.Info);
+    }
+
+    async Task MarkPaid(InvoiceDto inv)
+    {
+        var payment = new { PaymentMethod = "Manual", Amount = inv.TotalAmount, Reference = "" };
+        await Http.PostAsJsonAsync($"api/invoices/{inv.Id}/payments", payment);
+        inv.Status = "Paid";
+        _collected += inv.TotalAmount;
+        _outstanding -= inv.TotalAmount;
+        Snackbar.Add($"Invoice {inv.InvoiceNumber} marked paid!", Severity.Success);
+    }
+}

@@ -1,0 +1,81 @@
+@page "/maintenance/{ProjectId:int}/worklog"
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Work Log Entry</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">Log Work — Project #@ProjectId</MudText>
+
+<MudCard Style="max-width:600px;">
+    <MudCardContent>
+        <MudDatePicker @bind-Date="_clockInDate" Label="Clock In Date" Class="mb-2" />
+        <MudTimePicker @bind-Time="_clockInTime" Label="Clock In Time" Class="mb-3" />
+        <MudDatePicker @bind-Date="_clockOutDate" Label="Clock Out Date" Class="mb-2" />
+        <MudTimePicker @bind-Time="_clockOutTime" Label="Clock Out Time" Class="mb-3" />
+
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+            <MudTextField @bind-Value="_log.GpsLocation" Label="GPS Location" ReadOnly="true" Style="flex:1;" />
+            <MudButton Variant="Variant.Outlined" Color="Color.Info" OnClick="CaptureGPS" Class="ml-2">Capture GPS</MudButton>
+        </MudStack>
+
+        <MudSelect @bind-Value="_log.PhotoCategory" Label="Photo Category" Class="mb-3">
+            <MudSelectItem Value="@("Before")">Before</MudSelectItem>
+            <MudSelectItem Value="@("During")">During</MudSelectItem>
+            <MudSelectItem Value="@("After")">After</MudSelectItem>
+        </MudSelect>
+
+        <MudTextField @bind-Value="_log.MaterialsUsed" Label="Materials Used" Lines="2" Class="mb-3" />
+        <MudTextField @bind-Value="_log.Notes" Label="Notes" Lines="3" Class="mb-3" />
+    </MudCardContent>
+    <MudCardActions>
+        <MudButton Variant="Variant.Outlined" OnClick="@(() => Nav.NavigateTo($"/maintenance/{ProjectId}"))">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Class="ml-2">Save Log</MudButton>
+    </MudCardActions>
+</MudCard>
+
+@code {
+    [Parameter] public int ProjectId { get; set; }
+    WorkLogDto _log = new();
+    DateTime? _clockInDate = DateTime.Today;
+    TimeSpan? _clockInTime = DateTime.Now.TimeOfDay;
+    DateTime? _clockOutDate;
+    TimeSpan? _clockOutTime;
+
+    async Task CaptureGPS()
+    {
+        try
+        {
+            var coords = await JS.InvokeAsync<GpsCoords>("getGeolocation");
+            _log.GpsLocation = $"{coords.Latitude:F6},{coords.Longitude:F6}";
+            Snackbar.Add("GPS captured!", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"GPS error: {ex.Message}", Severity.Warning);
+            _log.GpsLocation = "GPS unavailable";
+        }
+    }
+
+    async Task Save()
+    {
+        _log.ProjectId = ProjectId;
+        if (_clockInDate.HasValue)
+            _log.ClockIn = _clockInDate.Value.Date + (_clockInTime ?? TimeSpan.Zero);
+        if (_clockOutDate.HasValue && _clockOutTime.HasValue)
+            _log.ClockOut = _clockOutDate.Value.Date + _clockOutTime.Value;
+
+        var resp = await Http.PostAsJsonAsync("api/worklogs", _log);
+        if (resp.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Work log saved!", Severity.Success);
+            Nav.NavigateTo($"/maintenance/{ProjectId}");
+        }
+    }
+
+    public class GpsCoords
+    {
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+    }
+}

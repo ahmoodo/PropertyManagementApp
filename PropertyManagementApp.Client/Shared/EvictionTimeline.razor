@@ -1,0 +1,37 @@
+@* visual step-by-step checklist for eviction cases *@
+
+<MudList T="EvictionStepDto" Dense="true">
+    @if (Steps != null)
+    {
+        @foreach (var step in Steps.OrderBy(s => s.Order))
+        {
+            <MudListItem T="EvictionStepDto">
+                <MudStack Row="true" AlignItems="AlignItems.Center">
+                    <MudCheckBox T="bool" Value="@step.IsComplete"
+                                 ValueChanged="@((bool val) => OnStepToggle.InvokeAsync(step))"
+                                 Color="Color.Success" />
+                    <div>
+                        <MudText Typo="Typo.body2" Style="@(step.IsComplete ? "text-decoration:line-through; color:gray;" : "")">
+                            <b>@step.Label</b>
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            @step.TypicalTiming — @step.ActionRequired
+                        </MudText>
+                        @if (step.IsComplete && step.CompletedAt.HasValue)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Success">
+                                Completed @step.CompletedAt.Value.ToString("MMM d, yyyy")
+                            </MudText>
+                        }
+                    </div>
+                </MudStack>
+            </MudListItem>
+            <MudDivider />
+        }
+    }
+</MudList>
+
+@code {
+    [Parameter] public List<EvictionStepDto>? Steps { get; set; }
+    [Parameter] public EventCallback<EvictionStepDto> OnStepToggle { get; set; }
+}

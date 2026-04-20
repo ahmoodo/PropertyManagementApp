@@ -1,0 +1,107 @@
+@page "/eviction-prep"
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Eviction Prep</PageTitle>
+<DisclaimerBanner />
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h5">Eviction Cases</MudText>
+    <MudSpacer />
+    <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Add"
+               OnClick="@(() => _newCaseOpen = true)">Start New Case</MudButton>
+</MudStack>
+
+@if (_cases == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (!_cases.Any())
+{
+    <MudText Color="Color.Secondary">No active eviction cases.</MudText>
+}
+else
+{
+    <MudTable Items="@_cases" Hover="true" Dense="true">
+        <HeaderContent>
+            <MudTh>Tenant</MudTh>
+            <MudTh>Property</MudTh>
+            <MudTh>Reason</MudTh>
+            <MudTh>Opened</MudTh>
+            <MudTh>Days</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            @{
+                var isOpen = context.Status == "Open";
+                var cid = context.Id;
+            }
+            <MudTd>@context.TenantName</MudTd>
+            <MudTd>@context.PropertyAddress</MudTd>
+            <MudTd>@context.Reason</MudTd>
+            <MudTd>@context.CaseOpenDate.ToString("MMM d, yyyy")</MudTd>
+            <MudTd>@context.DaysElapsed</MudTd>
+            <MudTd>
+                <MudChip T="string" Color="@(isOpen ? Color.Warning : Color.Success)" Size="Size.Small">@context.Status</MudChip>
+            </MudTd>
+            <MudTd>
+                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="Color.Primary"
+                               OnClick="@(() => Nav.NavigateTo($"/eviction-prep/{cid}"))" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+<MudDialog @bind-Visible="_newCaseOpen">
+    <DialogContent>
+        <MudText Typo="Typo.subtitle1" Class="mb-3">Open New Eviction Case</MudText>
+        <MudSelect @bind-Value="_newCase.TenantId" Label="Tenant" Class="mb-3">
+            @foreach (var t in _tenants)
+            {
+                <MudSelectItem Value="@t.Id">@t.FullName</MudSelectItem>
+            }
+        </MudSelect>
+        <MudSelect @bind-Value="_newCase.Reason" Label="Reason" Class="mb-3">
+            <MudSelectItem Value="@("Late Rent")">Late Rent</MudSelectItem>
+            <MudSelectItem Value="@("Lease Violation")">Lease Violation</MudSelectItem>
+            <MudSelectItem Value="@("Other")">Other</MudSelectItem>
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _newCaseOpen = false)">Cancel</MudButton>
+        <MudButton Color="Color.Warning" OnClick="CreateCase">Open Case</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    List<EvictionCaseDto>? _cases;
+    List<TenantDto> _tenants = new();
+    bool _newCaseOpen;
+    EvictionCaseDto _newCase = new() { Reason = "Late Rent" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _cases = await Http.GetFromJsonAsync<List<EvictionCaseDto>>("api/evictioncases");
+        _tenants = await Http.GetFromJsonAsync<List<TenantDto>>("api/tenants") ?? new();
+    }
+
+    async Task CreateCase()
+    {
+        var tenant = _tenants.FirstOrDefault(t => t.Id == _newCase.TenantId);
+        if (tenant != null)
+        {
+            _newCase.TenantName = tenant.FullName;
+            _newCase.PropertyId = tenant.PropertyId;
+        }
+        var resp = await Http.PostAsJsonAsync("api/evictioncases", _newCase);
+        if (resp.IsSuccessStatusCode)
+        {
+            var created = await resp.Content.ReadFromJsonAsync<EvictionCaseDto>();
+            _newCaseOpen = false;
+            Snackbar.Add("Eviction case opened!", Severity.Warning);
+            if (created != null)
+                Nav.NavigateTo($"/eviction-prep/{created.Id}");
+        }
+    }
+}

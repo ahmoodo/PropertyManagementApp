@@ -1,0 +1,65 @@
+@page "/rent-records/statement/{TenantId:int}"
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+<div class="print-only">
+    @if (_tenant != null && _schedule != null)
+    {
+        <div style="max-width:700px; margin:auto; font-family:Arial; padding:24px;">
+            <h2>Monthly Rent Statement</h2>
+            <hr/>
+            <p><b>Tenant:</b> @_tenant.FullName</p>
+            <p><b>Unit:</b> @_tenant.Unit</p>
+            <p><b>Month:</b> April 2026</p>
+            <table style="width:100%; border-collapse:collapse;">
+                <tr style="background:#eee;"><th style="padding:8px; text-align:left;">Description</th><th>Amount</th></tr>
+                <tr><td style="padding:8px;">Monthly Rent</td><td style="padding:8px;">@_schedule.BaseRent.ToString("C")</td></tr>
+                @if (_schedule.LateFee > 0)
+                {
+                    <tr><td style="padding:8px;">Late Fee</td><td style="padding:8px;">@_schedule.LateFee.ToString("C")</td></tr>
+                }
+                <tr style="font-weight:bold;"><td style="padding:8px;">Total Due</td><td style="padding:8px;">@((_schedule.BaseRent + _schedule.LateFee).ToString("C"))</td></tr>
+                <tr><td style="padding:8px;">Status</td><td style="padding:8px;">@_schedule.Status</td></tr>
+            </table>
+            <p style="margin-top:24px; font-size:12px; color:gray;">Generated @DateTime.Today.ToString("MMMM d, yyyy")</p>
+        </div>
+    }
+</div>
+
+<div class="no-print">
+    <MudText Typo="Typo.h5" Class="mb-4">Monthly Statement Preview</MudText>
+    @if (_tenant != null)
+    {
+        <MudCard Style="max-width:600px;">
+            <MudCardContent>
+                <MudText><b>Tenant:</b> @_tenant.FullName — Unit @_tenant.Unit</MudText>
+                @if (_schedule != null)
+                {
+                    <MudText><b>Base Rent:</b> @_schedule.BaseRent.ToString("C")</MudText>
+                    <MudText><b>Late Fee:</b> @(_schedule.LateFee > 0 ? _schedule.LateFee.ToString("C") : "None")</MudText>
+                    <MudText><b>Total Due:</b> @((_schedule.BaseRent + _schedule.LateFee).ToString("C"))</MudText>
+                    <MudText><b>Status:</b> @_schedule.Status</MudText>
+                }
+            </MudCardContent>
+            <MudCardActions>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Print"
+                           OnClick="Print">Print Statement</MudButton>
+            </MudCardActions>
+        </MudCard>
+    }
+</div>
+
+@code {
+    [Parameter] public int TenantId { get; set; }
+    TenantDto? _tenant;
+    RentScheduleDto? _schedule;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _tenant = await Http.GetFromJsonAsync<TenantDto>($"api/tenants/{TenantId}");
+        var schedules = await Http.GetFromJsonAsync<List<RentScheduleDto>>($"api/rentschedules?tenantId={TenantId}&month=2026-04");
+        _schedule = schedules?.FirstOrDefault();
+    }
+
+    async Task Print() => await JS.InvokeVoidAsync("printPage");
+}

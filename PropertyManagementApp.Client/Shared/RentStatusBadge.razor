@@ -1,0 +1,18 @@
+@* shows a colored chip for rent status *@
+
+<MudChip T="string" Color="@GetColor()" Size="Size.Small" Class="status-chip">
+    @Status
+</MudChip>
+
+@code {
+    [Parameter] public string Status { get; set; } = "Unpaid";
+
+    Color GetColor() => Status switch
+    {
+        "Paid" => Color.Success,
+        "Late" => Color.Error,
+        "Partial" => Color.Warning,
+        "Unpaid" => Color.Default,
+        _ => Color.Default
+    };
+}

@@ -1,0 +1,124 @@
+@page "/rent-collection"
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Rent Collection</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">Rent Collection</MudText>
+
+<MudGrid Class="mb-4">
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard><MudCardContent>
+            <MudText Typo="Typo.caption">Total Due</MudText>
+            <MudText Typo="Typo.h6">@_totalDue.ToString("C")</MudText>
+        </MudCardContent></MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard><MudCardContent>
+            <MudText Typo="Typo.caption">Collected</MudText>
+            <MudText Typo="Typo.h6" Style="color:#388e3c;">@_collected.ToString("C")</MudText>
+        </MudCardContent></MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard><MudCardContent>
+            <MudText Typo="Typo.caption">Delinquent</MudText>
+            <MudText Typo="Typo.h6" Style="color:#d32f2f;">@_delinquent</MudText>
+        </MudCardContent></MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard><MudCardContent>
+            <MudText Typo="Typo.caption">Month</MudText>
+            <MudText Typo="Typo.h6">@_month</MudText>
+        </MudCardContent></MudCard>
+    </MudItem>
+</MudGrid>
+
+<MudStack Row="true" Class="mb-3" Wrap="Wrap.Wrap">
+    <MudSelect T="string" Label="Status Filter" @bind-Value="_statusFilter" Style="min-width:160px;" Dense="true" Variant="Variant.Outlined">
+        <MudSelectItem Value="@("All")">All</MudSelectItem>
+        <MudSelectItem Value="@("Paid")">Paid</MudSelectItem>
+        <MudSelectItem Value="@("Unpaid")">Unpaid</MudSelectItem>
+        <MudSelectItem Value="@("Late")">Late</MudSelectItem>
+        <MudSelectItem Value="@("Partial")">Partial</MudSelectItem>
+    </MudSelect>
+    <MudTextField @bind-Value="_searchText" Placeholder="Search tenant..." Variant="Variant.Outlined" Dense="true"
+                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
+    <MudButton Href="/rent-collection/latefee" Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small">Late Fee Policy</MudButton>
+</MudStack>
+
+@if (_schedules == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    <MudTable Items="@Filtered" Hover="true" Dense="true" Breakpoint="Breakpoint.Sm">
+        <HeaderContent>
+            <MudTh>Tenant</MudTh>
+            <MudTh>Property / Unit</MudTh>
+            <MudTh>Due Date</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Base Rent</MudTh>
+            <MudTh>Late Fee</MudTh>
+            <MudTh>Actions</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.TenantName</MudTd>
+            <MudTd>@context.PropertyAddress — @context.Unit</MudTd>
+            <MudTd>@context.DueDate.ToString("MMM d, yyyy")</MudTd>
+            <MudTd><RentStatusBadge Status="@context.Status" /></MudTd>
+            <MudTd>@context.BaseRent.ToString("C")</MudTd>
+            <MudTd>@(context.LateFee > 0 ? context.LateFee.ToString("C") : "—")</MudTd>
+            <MudTd>
+                @{var tid = context.TenantId;}
+                <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" Color="Color.Primary"
+                               OnClick="@(() => Nav.NavigateTo($"/rent-collection/{tid}"))" />
+                @{var sched = context;}
+                <MudIconButton Icon="@Icons.Material.Filled.Send" Size="Size.Small" Color="Color.Info"
+                               OnClick="@(() => SendReminder(sched))" Title="Send Reminder" />
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    List<RentScheduleDto>? _schedules;
+    List<RentPaymentDto>? _payments;
+    string _statusFilter = "All";
+    string _searchText = "";
+    string _month = "2026-04";
+
+    decimal _totalDue;
+    decimal _collected;
+    int _delinquent;
+
+    IEnumerable<RentScheduleDto> Filtered => (_schedules ?? new())
+        .Where(s => _statusFilter == "All" || s.Status == _statusFilter)
+        .Where(s => string.IsNullOrEmpty(_searchText) || s.TenantName.Contains(_searchText, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync()
+    {
+        _schedules = await Http.GetFromJsonAsync<List<RentScheduleDto>>($"api/rentschedules?month={_month}");
+        _payments = await Http.GetFromJsonAsync<List<RentPaymentDto>>("api/rentpayments");
+
+        if (_schedules != null)
+        {
+            _totalDue = _schedules.Sum(s => s.BaseRent + s.LateFee);
+            _delinquent = _schedules.Count(s => s.Status is "Late" or "Unpaid");
+        }
+        if (_payments != null)
+            _collected = _payments.Sum(p => p.AmountPaid);
+    }
+
+    async Task SendReminder(RentScheduleDto sched)
+    {
+        var log = new CommunicationLogDto
+        {
+            TenantId = sched.TenantId,
+            Type = "SMS",
+            Message = $"Hi {sched.TenantName}, your rent of {sched.BaseRent:C} was due {sched.DueDate:MMM d}. Please pay ASAP."
+        };
+        await Http.PostAsJsonAsync("api/communications", log);
+        Snackbar.Add($"Reminder sent to {sched.TenantName}", Severity.Success);
+    }
+}

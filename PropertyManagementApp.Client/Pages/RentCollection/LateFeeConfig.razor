@@ -1,0 +1,48 @@
+@page "/rent-collection/latefee"
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<PageTitle>Late Fee Policy</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">Late Fee Configuration</MudText>
+
+@if (_policy == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    <MudCard Style="max-width:500px;">
+        <MudCardContent>
+            <MudNumericField @bind-Value="_policy.GracePeriodDays" Label="Grace Period (days)" Min="0" Max="30" Class="mb-3" />
+            <MudSelect @bind-Value="_policy.FeeType" Label="Fee Type" Class="mb-3">
+                <MudSelectItem Value="@("Flat")">Flat Amount</MudSelectItem>
+                <MudSelectItem Value="@("Percentage")">Percentage</MudSelectItem>
+            </MudSelect>
+            @{
+                var feeLabel = _policy.FeeType == "Flat" ? "Fee Amount ($)" : "Fee Percentage (%)";
+            }
+            <MudNumericField @bind-Value="_policy.FeeValue" Label="@feeLabel"
+                             Min="0m" Format="F2" Class="mb-3" />
+            <MudSwitch @bind-Value="_policy.PerDayAccrual" Label="Per-Day Accrual" Color="Color.Primary" />
+        </MudCardContent>
+        <MudCardActions>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save">Save Policy</MudButton>
+        </MudCardActions>
+    </MudCard>
+}
+
+@code {
+    LateFeePolicy? _policy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _policy = await Http.GetFromJsonAsync<LateFeePolicy>("api/latefeepolicies");
+    }
+
+    async Task Save()
+    {
+        if (_policy == null) return;
+        await Http.PutAsJsonAsync($"api/latefeepolicies/{_policy.Id}", _policy);
+        Snackbar.Add("Policy saved!", Severity.Success);
+    }
+}

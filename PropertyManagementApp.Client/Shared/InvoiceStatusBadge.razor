@@ -1,0 +1,14 @@
+<MudChip T="string" Color="@GetColor()" Size="Size.Small">@Status</MudChip>
+
+@code {
+    [Parameter] public string Status { get; set; } = "Draft";
+
+    Color GetColor() => Status switch
+    {
+        "Draft" => Color.Default,
+        "Sent" => Color.Info,
+        "Paid" => Color.Success,
+        "Overdue" => Color.Error,
+        _ => Color.Default
+    };
+}

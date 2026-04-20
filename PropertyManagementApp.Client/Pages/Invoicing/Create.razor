@@ -1,0 +1,132 @@
+@page "/invoicing/create"
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Create Invoice</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">New Invoice</MudText>
+
+<MudTabs Elevation="1" Rounded="true" @bind-ActivePanelIndex="_tab">
+    <MudTabPanel Text="1. Header">
+        <MudGrid Class="mt-3">
+            <MudItem xs="12" md="6">
+                <MudSelect T="int?" @bind-Value="_invoice.TenantId" Label="Customer (Tenant)" Class="mb-3">
+                    <MudSelectItem T="int?" Value="@((int?)null)">— Custom / Non-Tenant —</MudSelectItem>
+                    @foreach (var t in _tenants)
+                    {
+                        <MudSelectItem T="int?" Value="@((int?)t.Id)">@t.FullName</MudSelectItem>
+                    }
+                </MudSelect>
+                @if (_invoice.TenantId == null)
+                {
+                    <MudTextField @bind-Value="_invoice.CustomerName" Label="Customer Name" Class="mb-3" />
+                }
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudSelect T="int?" @bind-Value="_invoice.PropertyId" Label="Property" Class="mb-3">
+                    <MudSelectItem T="int?" Value="@((int?)null)">— None —</MudSelectItem>
+                    @foreach (var p in _properties)
+                    {
+                        <MudSelectItem T="int?" Value="@((int?)p.Id)">@p.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudDatePicker @bind-Date="_invoiceDate" Label="Invoice Date" Class="mb-3" />
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudDatePicker @bind-Date="_dueDate" Label="Due Date" Class="mb-3" />
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+
+    <MudTabPanel Text="2. Line Items">
+        <div class="mt-3">
+            <LineItemsEditor Items="@_invoice.LineItems" />
+        </div>
+    </MudTabPanel>
+
+    <MudTabPanel Text="3. Tax & Total">
+        <MudGrid Class="mt-3">
+            <MudItem xs="12" md="4">
+                <MudNumericField @bind-Value="_invoice.TaxRate" Label="Tax Rate (%)" Min="0m" Max="100m" Format="F2" Class="mb-3" />
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudNumericField @bind-Value="_invoice.Discount" Label="Discount ($)" Min="0m" Format="F2" Class="mb-3" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudText Typo="Typo.h6">Subtotal: @_invoice.Subtotal.ToString("C")</MudText>
+                <MudText>Tax: @_invoice.TaxAmount.ToString("C")</MudText>
+                <MudText>Discount: -@_invoice.Discount.ToString("C")</MudText>
+                <MudText Typo="Typo.h5"><b>Total: @_invoice.TotalAmount.ToString("C")</b></MudText>
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+
+    <MudTabPanel Text="4. Notes">
+        <MudTextField @bind-Value="_invoice.Notes" Label="Notes / Terms" Lines="4" Class="mt-3 mb-3" />
+    </MudTabPanel>
+</MudTabs>
+
+<MudStack Row="true" Class="mt-4">
+    <MudButton Variant="Variant.Outlined" OnClick="@(() => Nav.NavigateTo("/invoicing"))">Cancel</MudButton>
+    <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="SaveDraft" Class="ml-2">Save Draft</MudButton>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAndSend" Class="ml-2">Save & Send</MudButton>
+</MudStack>
+
+@code {
+    int _tab = 0;
+    InvoiceDto _invoice = new();
+    List<TenantDto> _tenants = new();
+    List<PropertyDto> _properties = new();
+    DateTime? _invoiceDate = DateTime.Today;
+    DateTime? _dueDate = DateTime.Today.AddDays(30);
+
+    protected override async Task OnInitializedAsync()
+    {
+        _tenants = await Http.GetFromJsonAsync<List<TenantDto>>("api/tenants") ?? new();
+        _properties = await Http.GetFromJsonAsync<List<PropertyDto>>("api/properties") ?? new();
+    }
+
+    async Task SaveDraft()
+    {
+        PrepareInvoice();
+        var resp = await Http.PostAsJsonAsync("api/invoices", _invoice);
+        if (resp.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Invoice saved as draft!", Severity.Success);
+            Nav.NavigateTo("/invoicing");
+        }
+    }
+
+    async Task SaveAndSend()
+    {
+        PrepareInvoice();
+        var resp = await Http.PostAsJsonAsync("api/invoices", _invoice);
+        if (resp.IsSuccessStatusCode)
+        {
+            var created = await resp.Content.ReadFromJsonAsync<InvoiceDto>();
+            if (created != null)
+                await Http.PostAsync($"api/invoices/{created.Id}/send", null);
+            Snackbar.Add("Invoice created and sent!", Severity.Success);
+            Nav.NavigateTo("/invoicing");
+        }
+    }
+
+    void PrepareInvoice()
+    {
+        if (_invoiceDate.HasValue) _invoice.InvoiceDate = _invoiceDate.Value;
+        if (_dueDate.HasValue) _invoice.DueDate = _dueDate.Value;
+
+        if (_invoice.TenantId.HasValue)
+        {
+            var t = _tenants.FirstOrDefault(x => x.Id == _invoice.TenantId.Value);
+            if (t != null) _invoice.CustomerName = t.FullName;
+        }
+        if (_invoice.PropertyId.HasValue)
+        {
+            var p = _properties.FirstOrDefault(x => x.Id == _invoice.PropertyId.Value);
+            if (p != null) _invoice.PropertyAddress = p.Address;
+        }
+    }
+}

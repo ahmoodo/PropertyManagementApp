@@ -1,0 +1,41 @@
+@* horizontal stepper for maintenance project status *@
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="my-2" Wrap="Wrap.Wrap">
+    @foreach (var s in _steps)
+    {
+        var isCurrent = s == CurrentStatus;
+        var isPast = IsPast(s);
+        <MudButton Variant="@(isCurrent ? Variant.Filled : Variant.Outlined)"
+                   Color="@(isCurrent ? Color.Primary : isPast ? Color.Success : Color.Default)"
+                   Size="Size.Small"
+                   OnClick="@(() => HandleClick(s))"
+                   Class="mr-1 mb-1">
+            @if (isPast) { <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Class="mr-1" /> }
+            @s
+        </MudButton>
+        @if (s != _steps.Last())
+        {
+            <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Size="Size.Small" />
+        }
+    }
+</MudStack>
+
+@code {
+    [Parameter] public string CurrentStatus { get; set; } = "Bid";
+    [Parameter] public EventCallback<string> OnStatusChange { get; set; }
+
+    private static readonly string[] _steps = { "Bid", "Approved", "Work Order", "Invoiced", "Closed" };
+
+    bool IsPast(string step)
+    {
+        var ci = Array.IndexOf(_steps, CurrentStatus);
+        var si = Array.IndexOf(_steps, step);
+        return si < ci;
+    }
+
+    async Task HandleClick(string status)
+    {
+        if (OnStatusChange.HasDelegate)
+            await OnStatusChange.InvokeAsync(status);
+    }
+}

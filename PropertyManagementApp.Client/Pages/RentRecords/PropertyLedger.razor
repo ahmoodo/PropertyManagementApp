@@ -1,0 +1,84 @@
+@page "/rent-records/property/{PropertyId:int}"
+@inject HttpClient Http
+
+<PageTitle>Property Ledger</PageTitle>
+
+@if (_property == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    <MudText Typo="Typo.h5" Class="mb-4">@_property.Name — Ledger</MudText>
+
+    <MudGrid Class="mb-4">
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard><MudCardContent>
+                <MudText Typo="Typo.caption">Total Charged</MudText>
+                <MudText Typo="Typo.h6">@_totalCharged.ToString("C")</MudText>
+            </MudCardContent></MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard><MudCardContent>
+                <MudText Typo="Typo.caption">Collected</MudText>
+                <MudText Typo="Typo.h6" Style="color:#388e3c;">@_collected.ToString("C")</MudText>
+            </MudCardContent></MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard><MudCardContent>
+                <MudText Typo="Typo.caption">Outstanding</MudText>
+                <MudText Typo="Typo.h6" Style="color:#d32f2f;">@(_totalCharged - _collected).ToString("C")</MudText>
+            </MudCardContent></MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudCard><MudCardContent>
+                <MudText Typo="Typo.caption">Maintenance Expenses</MudText>
+                <MudText Typo="Typo.h6" Style="color:#e65100;">@_maintenanceCost.ToString("C")</MudText>
+            </MudCardContent></MudCard>
+        </MudItem>
+    </MudGrid>
+
+    <MudText Typo="Typo.subtitle1" Class="mb-2">Net Income: <b>@(_collected - _maintenanceCost).ToString("C")</b></MudText>
+
+    <LedgerTable Rows="@_rows" />
+}
+
+@code {
+    [Parameter] public int PropertyId { get; set; }
+    PropertyDto? _property;
+    List<LedgerRow>? _rows;
+    decimal _totalCharged, _collected, _maintenanceCost;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _property = await Http.GetFromJsonAsync<PropertyDto>($"api/properties/{PropertyId}");
+        var schedules = await Http.GetFromJsonAsync<List<RentScheduleDto>>($"api/rentschedules?propertyId={PropertyId}");
+        var tenantIds = (schedules ?? new()).Select(s => s.TenantId).Distinct().ToList();
+        var projects = await Http.GetFromJsonAsync<List<MaintenanceProjectDto>>($"api/maintenanceprojects?propertyId={PropertyId}");
+
+        _totalCharged = (schedules ?? new()).Sum(s => s.BaseRent + s.LateFee);
+        _maintenanceCost = (projects ?? new()).Where(p => p.Status == "Closed" || p.Status == "Invoiced").Sum(p => p.BidAmount);
+
+        // fetch all payments for these tenants
+        var allPayments = new List<RentPaymentDto>();
+        foreach (var tid in tenantIds)
+        {
+            var payments = await Http.GetFromJsonAsync<List<RentPaymentDto>>($"api/rentpayments?tenantId={tid}");
+            if (payments != null) allPayments.AddRange(payments);
+        }
+        _collected = allPayments.Sum(p => p.AmountPaid);
+
+        _rows = new();
+        decimal running = 0;
+        foreach (var s in (schedules ?? new()).OrderBy(s => s.DueDate))
+        {
+            running += s.BaseRent + s.LateFee;
+            _rows.Add(new LedgerRow { Date = s.DueDate, Description = $"Rent — {s.TenantName} ({s.Unit})", Charge = s.BaseRent + s.LateFee, Payment = 0, Balance = running });
+        }
+        foreach (var p in allPayments.OrderBy(p => p.PaymentDate))
+        {
+            running -= p.AmountPaid;
+            _rows.Add(new LedgerRow { Date = p.PaymentDate, Description = $"{p.PaymentMethod} Payment", Charge = 0, Payment = p.AmountPaid, Balance = running });
+        }
+    }
+}

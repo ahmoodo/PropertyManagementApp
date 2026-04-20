@@ -1,0 +1,86 @@
+@page "/eviction-prep/{CaseId:int}/notice/{TemplateSlug}"
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+
+<PageTitle>Notice Editor</PageTitle>
+<DisclaimerBanner />
+<MudText Typo="Typo.h5" Class="mb-4">Notice Editor — @_template?.Title</MudText>
+
+@if (_noticeText == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    <MudCard>
+        <MudCardContent>
+            <MudTextField @bind-Value="_noticeText" Label="Notice Text (editable)" Lines="20"
+                          Variant="Variant.Outlined" Class="mb-3" />
+        </MudCardContent>
+        <MudCardActions>
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Print"
+                       OnClick="Print">Print / Export PDF</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save" Class="ml-2">Save Notice</MudButton>
+            <MudButton Variant="Variant.Text" OnClick="@(() => Nav.NavigateTo($"/eviction-prep/{CaseId}"))" Class="ml-2">Back</MudButton>
+        </MudCardActions>
+    </MudCard>
+}
+
+@code {
+    [Parameter] public int CaseId { get; set; }
+    [Parameter] public string TemplateSlug { get; set; } = "";
+
+    EvictionTemplateDto? _template;
+    EvictionCaseDto? _case;
+    TenantDto? _tenant;
+    RentScheduleDto? _schedule;
+    string? _noticeText;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _template = await Http.GetFromJsonAsync<EvictionTemplateDto>($"api/evictiontemplates/{TemplateSlug}");
+        _case = await Http.GetFromJsonAsync<EvictionCaseDto>($"api/evictioncases/{CaseId}");
+
+        if (_case != null)
+        {
+            _tenant = await Http.GetFromJsonAsync<TenantDto>($"api/tenants/{_case.TenantId}");
+            var schedules = await Http.GetFromJsonAsync<List<RentScheduleDto>>($"api/rentschedules?tenantId={_case.TenantId}");
+            _schedule = schedules?.FirstOrDefault();
+        }
+
+        if (_template != null && _tenant != null)
+        {
+            _noticeText = ApplyMerge(_template.Body);
+        }
+    }
+
+    string ApplyMerge(string template)
+    {
+        if (_tenant == null || _case == null) return template;
+        return template
+            .Replace("{{TenantFullName}}", _tenant.FullName)
+            .Replace("{{PropertyAddress}}", _case.PropertyAddress)
+            .Replace("{{RentAmountDue}}", _schedule != null ? (_schedule.BaseRent + _schedule.LateFee).ToString("C") : "N/A")
+            .Replace("{{DueDate}}", _schedule != null ? _schedule.DueDate.ToString("MMMM d, yyyy") : "N/A")
+            .Replace("{{NoticeDate}}", DateTime.Today.ToString("MMMM d, yyyy"))
+            .Replace("{{LandlordName}}", "Gongjun Yan")
+            .Replace("{{QuitByDate}}", DateTime.Today.AddDays(3).ToString("MMMM d, yyyy"));
+    }
+
+    async Task Save()
+    {
+        var notice = new EvictionNoticeDto
+        {
+            Type = TemplateSlug,
+            NoticeText = _noticeText ?? "",
+            DeliveryMethod = "Email"
+        };
+        await Http.PostAsJsonAsync($"api/evictioncases/{CaseId}/notices", notice);
+        Snackbar.Add("Notice saved!", Severity.Success);
+        Nav.NavigateTo($"/eviction-prep/{CaseId}");
+    }
+
+    async Task Print() => await JS.InvokeVoidAsync("printPage");
+}

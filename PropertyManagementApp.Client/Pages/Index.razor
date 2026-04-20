@@ -1,0 +1,76 @@
+@page "/"
+@inject HttpClient Http
+
+<PageTitle>Dashboard</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">Dashboard</MudText>
+
+<MudGrid>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard>
+            <MudCardContent>
+                <MudText Typo="Typo.caption">Total Due (April)</MudText>
+                <MudText Typo="Typo.h5">@_totalDue.ToString("C")</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard>
+            <MudCardContent>
+                <MudText Typo="Typo.caption">Collected</MudText>
+                <MudText Typo="Typo.h5" Style="color:#388e3c;">@_collected.ToString("C")</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard>
+            <MudCardContent>
+                <MudText Typo="Typo.caption">Delinquent Tenants</MudText>
+                <MudText Typo="Typo.h5" Style="color:#d32f2f;">@_delinquent</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudCard>
+            <MudCardContent>
+                <MudText Typo="Typo.caption">Open Maintenance</MudText>
+                <MudText Typo="Typo.h5">@_openMaintenance</MudText>
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+</MudGrid>
+
+<MudText Typo="Typo.h6" Class="mt-6 mb-2">Quick Links</MudText>
+<MudStack Row="true" Wrap="Wrap.Wrap">
+    <MudButton Href="/rent-collection" Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AttachMoney">Rent Collection</MudButton>
+    <MudButton Href="/maintenance" Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Build">Maintenance</MudButton>
+    <MudButton Href="/invoicing" Variant="Variant.Outlined" Color="Color.Tertiary" StartIcon="@Icons.Material.Filled.Receipt">Invoicing</MudButton>
+    <MudButton Href="/eviction-prep" Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Gavel">Eviction Prep</MudButton>
+</MudStack>
+
+@code {
+    decimal _totalDue;
+    decimal _collected;
+    int _delinquent;
+    int _openMaintenance;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var schedules = await Http.GetFromJsonAsync<List<RentScheduleDto>>("api/rentschedules?month=2026-04");
+            var payments = await Http.GetFromJsonAsync<List<RentPaymentDto>>("api/rentpayments");
+            var projects = await Http.GetFromJsonAsync<List<MaintenanceProjectDto>>("api/maintenanceprojects");
+
+            if (schedules != null)
+            {
+                _totalDue = schedules.Sum(s => s.BaseRent + s.LateFee);
+                _delinquent = schedules.Count(s => s.Status == "Late" || s.Status == "Unpaid");
+            }
+            if (payments != null)
+                _collected = payments.Sum(p => p.AmountPaid);
+            if (projects != null)
+                _openMaintenance = projects.Count(p => p.Status != "Closed");
+        }
+        catch { /* fail silently on dashboard */ }
+    }
+}

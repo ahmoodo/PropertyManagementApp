@@ -1,0 +1,168 @@
+@page "/rent-collection/{TenantId:int}"
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Tenant Detail</PageTitle>
+
+@if (_tenant == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+        <MudText Typo="Typo.h5">@_tenant.FullName</MudText>
+        <MudSpacer />
+        <MudChip T="string" Color="Color.Default" Size="Size.Small">Unit @_tenant.Unit</MudChip>
+    </MudStack>
+
+    <MudGrid>
+        @* Tenant info card *@
+        <MudItem xs="12" md="4">
+            <MudCard>
+                <MudCardHeader><CardHeaderContent><MudText Typo="Typo.subtitle1">Contact Info</MudText></CardHeaderContent></MudCardHeader>
+                <MudCardContent>
+                    <MudText>Email: @_tenant.Email</MudText>
+                    <MudText>Phone: @_tenant.Phone</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        @* Rent schedule card *@
+        @if (_schedule != null)
+        {
+            <MudItem xs="12" md="8">
+                <MudCard>
+                    <MudCardHeader><CardHeaderContent><MudText Typo="Typo.subtitle1">April Rent</MudText></CardHeaderContent></MudCardHeader>
+                    <MudCardContent>
+                        <MudStack Row="true" Wrap="Wrap.Wrap">
+                            <MudText>Base Rent: <b>@_schedule.BaseRent.ToString("C")</b></MudText>
+                            <MudText>Late Fee: <b>@(_schedule.LateFee > 0 ? _schedule.LateFee.ToString("C") : "None")</b></MudText>
+                            <MudText>Status: <RentStatusBadge Status="@_schedule.Status" /></MudText>
+                        </MudStack>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small"
+                                   OnClick="ApplyLateFee">Apply Late Fee</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
+                                   OnClick="OpenMarkPaidDialog" Class="ml-2">Mark Paid</MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+        }
+
+        @* Chase action panel *@
+        <MudItem xs="12">
+            <MudCard>
+                <MudCardHeader><CardHeaderContent><MudText Typo="Typo.subtitle1">Rent Chase Actions</MudText></CardHeaderContent></MudCardHeader>
+                <MudCardContent>
+                    <MudStack Row="true" Wrap="Wrap.Wrap">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.Sms"
+                                   OnClick='() => SendComm("SMS", "Day 1 Reminder")'>Day 1 — Send Reminder</MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Warning"
+                                   OnClick='() => SendComm("Email", "Late Notice")'>Day 3 — Late Notice</MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.Gavel"
+                                   OnClick='() => SendComm("Email", "Final Notice")'>Final Notice</MudButton>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        @* Communication timeline *@
+        <MudItem xs="12">
+            <MudCard>
+                <MudCardHeader><CardHeaderContent><MudText Typo="Typo.subtitle1">Communication History</MudText></CardHeaderContent></MudCardHeader>
+                <MudCardContent>
+                    <CommunicationLog Logs="@_comms" />
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+}
+
+@* Mark Paid dialog *@
+<MudDialog @bind-Visible="_markPaidOpen">
+    <DialogContent>
+        <MudText Typo="Typo.subtitle1" Class="mb-3">Record Payment</MudText>
+        <MudNumericField @bind-Value="_payAmount" Label="Amount Paid" Format="F2" Min="0m" Adornment="Adornment.Start" AdornmentText="$" />
+        <MudSelect @bind-Value="_payMethod" Label="Payment Method" Class="mt-3">
+            <MudSelectItem Value="@("ACH")">ACH</MudSelectItem>
+            <MudSelectItem Value="@("Card")">Card</MudSelectItem>
+            <MudSelectItem Value="@("Check")">Check</MudSelectItem>
+            <MudSelectItem Value="@("Cash")">Cash</MudSelectItem>
+        </MudSelect>
+        <MudTextField @bind-Value="_payRef" Label="Transaction Reference" Class="mt-3" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => _markPaidOpen = false)">Cancel</MudButton>
+        <MudButton Color="Color.Success" OnClick="ConfirmPayment">Confirm</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] public int TenantId { get; set; }
+
+    TenantDto? _tenant;
+    RentScheduleDto? _schedule;
+    List<CommunicationLogDto>? _comms;
+
+    bool _markPaidOpen;
+    decimal _payAmount;
+    string _payMethod = "ACH";
+    string _payRef = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _tenant = await Http.GetFromJsonAsync<TenantDto>($"api/tenants/{TenantId}");
+        var schedules = await Http.GetFromJsonAsync<List<RentScheduleDto>>($"api/rentschedules?tenantId={TenantId}&month=2026-04");
+        _schedule = schedules?.FirstOrDefault();
+        _comms = await Http.GetFromJsonAsync<List<CommunicationLogDto>>($"api/communications?tenantId={TenantId}");
+
+        if (_schedule != null)
+            _payAmount = _schedule.BaseRent + _schedule.LateFee;
+    }
+
+    void OpenMarkPaidDialog() => _markPaidOpen = true;
+
+    async Task ConfirmPayment()
+    {
+        if (_schedule == null) return;
+        var payment = new RentPaymentDto
+        {
+            TenantId = TenantId,
+            RentScheduleId = _schedule.Id,
+            AmountPaid = _payAmount,
+            PaymentMethod = _payMethod,
+            TransactionReference = _payRef
+        };
+        await Http.PostAsJsonAsync("api/rentpayments", payment);
+        _markPaidOpen = false;
+        Snackbar.Add("Payment recorded!", Severity.Success);
+        // reload schedule
+        var schedules = await Http.GetFromJsonAsync<List<RentScheduleDto>>($"api/rentschedules?tenantId={TenantId}&month=2026-04");
+        _schedule = schedules?.FirstOrDefault();
+    }
+
+    async Task ApplyLateFee()
+    {
+        if (_schedule == null) return;
+        var result = await Http.PostAsync($"api/rentschedules/{_schedule.Id}/apply-late-fee", null);
+        if (result.IsSuccessStatusCode)
+        {
+            _schedule = await result.Content.ReadFromJsonAsync<RentScheduleDto>();
+            Snackbar.Add("Late fee applied!", Severity.Warning);
+        }
+    }
+
+    async Task SendComm(string type, string message)
+    {
+        var log = new CommunicationLogDto { TenantId = TenantId, Type = type, Message = message };
+        var resp = await Http.PostAsJsonAsync("api/communications", log);
+        if (resp.IsSuccessStatusCode)
+        {
+            _comms = await Http.GetFromJsonAsync<List<CommunicationLogDto>>($"api/communications?tenantId={TenantId}");
+            Snackbar.Add($"{type} sent!", Severity.Info);
+        }
+    }
+}

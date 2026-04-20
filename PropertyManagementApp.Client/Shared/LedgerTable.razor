@@ -1,0 +1,22 @@
+@using PropertyManagementApp.Client.Shared
+
+<MudTable Items="@Rows" Dense="true" Hover="true" Bordered="true" Striped="true">
+    <HeaderContent>
+        <MudTh>Date</MudTh>
+        <MudTh>Description</MudTh>
+        <MudTh>Charge</MudTh>
+        <MudTh>Payment</MudTh>
+        <MudTh>Balance</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.Date.ToString("MMM d, yyyy")</MudTd>
+        <MudTd>@context.Description</MudTd>
+        <MudTd Style="color: #d32f2f;">@(context.Charge > 0 ? context.Charge.ToString("C") : "")</MudTd>
+        <MudTd Style="color: #388e3c;">@(context.Payment > 0 ? context.Payment.ToString("C") : "")</MudTd>
+        <MudTd><b>@context.Balance.ToString("C")</b></MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    [Parameter] public List<LedgerRow>? Rows { get; set; }
+}

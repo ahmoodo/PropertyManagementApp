@@ -1,0 +1,32 @@
+@* shows a timeline of SMS/email/call entries for a tenant *@
+
+@if (Logs == null || !Logs.Any())
+{
+    <MudText Class="mt-2" Color="Color.Secondary">No communication history yet.</MudText>
+}
+else
+{
+    <MudTimeline>
+        @foreach (var log in Logs.OrderByDescending(l => l.SentAt))
+        {
+            <MudTimelineItem Color="GetColor(log.Type)" Size="Size.Small">
+                <ItemContent>
+                    <MudText Typo="Typo.body2"><b>@log.Type</b> — @log.SentAt.ToString("MMM d, yyyy h:mm tt")</MudText>
+                    <MudText Typo="Typo.caption">@log.Message</MudText>
+                </ItemContent>
+            </MudTimelineItem>
+        }
+    </MudTimeline>
+}
+
+@code {
+    [Parameter] public List<CommunicationLogDto>? Logs { get; set; }
+
+    Color GetColor(string type) => type switch
+    {
+        "SMS" => Color.Info,
+        "Email" => Color.Primary,
+        "Call" => Color.Success,
+        _ => Color.Default
+    };
+}
