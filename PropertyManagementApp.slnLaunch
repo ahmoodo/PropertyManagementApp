@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "API + Client",
+    "Projects": [
+      {
+        "Path": "PropertyManagementApp.Api\\PropertyManagementApp.Api.csproj",
+        "Action": "StartWithoutDebugging"
+      },
+      {
+        "Path": "PropertyManagementApp.Client\\PropertyManagementApp.Client.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]
