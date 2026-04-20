@@ -50,15 +50,23 @@
 </div>
 
 @code {
+    string? _error;
     [Parameter] public int TenantId { get; set; }
     TenantDto? _tenant;
     RentScheduleDto? _schedule;
 
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
         _tenant = await Http.GetFromJsonAsync<TenantDto>($"api/tenants/{TenantId}");
         var schedules = await Http.GetFromJsonAsync<List<RentScheduleDto>>($"api/rentschedules?tenantId={TenantId}&month=2026-04");
         _schedule = schedules?.FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not connect to API: {ex.Message}";
+        }
     }
 
     async Task Print() => await JS.InvokeVoidAsync("printPage");

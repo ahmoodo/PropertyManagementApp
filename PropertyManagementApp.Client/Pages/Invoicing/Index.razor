@@ -4,6 +4,7 @@
 @inject ISnackbar Snackbar
 
 <PageTitle>Invoicing</PageTitle>
+<ApiError Message="@_error" />
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudText Typo="Typo.h5">Invoices</MudText>
     <MudSpacer />
@@ -78,12 +79,15 @@ else
 }
 
 @code {
+    string? _error;
     List<InvoiceDto>? _invoices;
     decimal _totalInvoiced, _collected, _outstanding;
     int _overdueCount;
 
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
         _invoices = await Http.GetFromJsonAsync<List<InvoiceDto>>("api/invoices");
         if (_invoices != null)
         {
@@ -91,6 +95,11 @@ else
             _collected = _invoices.Where(i => i.Status == "Paid").Sum(i => i.TotalAmount);
             _outstanding = _invoices.Where(i => i.Status is "Sent" or "Overdue").Sum(i => i.TotalAmount);
             _overdueCount = _invoices.Count(i => i.Status == "Overdue");
+        }
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not connect to API: {ex.Message}";
         }
     }
 

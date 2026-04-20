@@ -4,6 +4,7 @@
 @inject ISnackbar Snackbar
 
 <PageTitle>Maintenance Projects</PageTitle>
+<ApiError Message="@_error" />
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudText Typo="Typo.h5">Maintenance Projects</MudText>
     <MudSpacer />
@@ -57,6 +58,7 @@ else
 }
 
 @code {
+    string? _error;
     List<MaintenanceProjectDto>? _projects;
 
     record StatusColumn(string Status, Color Color);
@@ -72,7 +74,14 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
         _projects = await Http.GetFromJsonAsync<List<MaintenanceProjectDto>>("api/maintenanceprojects");
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not connect to API: {ex.Message}";
+        }
     }
 
     async Task AdvanceStatus(MaintenanceProjectDto proj, string newStatus)

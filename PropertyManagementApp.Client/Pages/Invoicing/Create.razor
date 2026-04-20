@@ -4,6 +4,7 @@
 @inject ISnackbar Snackbar
 
 <PageTitle>Create Invoice</PageTitle>
+<ApiError Message="@_error" />
 <MudText Typo="Typo.h5" Class="mb-4">New Invoice</MudText>
 
 <MudTabs Elevation="1" Rounded="true" @bind-ActivePanelIndex="_tab">
@@ -75,6 +76,7 @@
 </MudStack>
 
 @code {
+    string? _error;
     int _tab = 0;
     InvoiceDto _invoice = new();
     List<TenantDto> _tenants = new();
@@ -84,8 +86,15 @@
 
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
         _tenants = await Http.GetFromJsonAsync<List<TenantDto>>("api/tenants") ?? new();
         _properties = await Http.GetFromJsonAsync<List<PropertyDto>>("api/properties") ?? new();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not connect to API: {ex.Message}";
+        }
     }
 
     async Task SaveDraft()

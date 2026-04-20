@@ -4,6 +4,7 @@
 @inject ISnackbar Snackbar
 
 <PageTitle>Maintenance Detail</PageTitle>
+<ApiError Message="@_error" />
 
 @if (_project == null)
 {
@@ -102,14 +103,22 @@ else
 }
 
 @code {
+    string? _error;
     [Parameter] public int ProjectId { get; set; }
     MaintenanceProjectDto? _project;
     List<WorkLogDto>? _workLogs;
 
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
         _project = await Http.GetFromJsonAsync<MaintenanceProjectDto>($"api/maintenanceprojects/{ProjectId}");
         _workLogs = await Http.GetFromJsonAsync<List<WorkLogDto>>($"api/worklogs?projectId={ProjectId}");
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not connect to API: {ex.Message}";
+        }
     }
 
     async Task HandleStatusChange(string newStatus)

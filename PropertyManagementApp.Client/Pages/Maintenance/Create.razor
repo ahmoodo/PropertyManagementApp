@@ -4,6 +4,7 @@
 @inject ISnackbar Snackbar
 
 <PageTitle>New Maintenance Project</PageTitle>
+<ApiError Message="@_error" />
 <MudText Typo="Typo.h5" Class="mb-4">New Maintenance Project</MudText>
 
 <MudCard Style="max-width:600px;">
@@ -27,12 +28,20 @@
 </MudCard>
 
 @code {
+    string? _error;
     MaintenanceProjectDto _project = new();
     List<PropertyDto> _properties = new();
 
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
         _properties = await Http.GetFromJsonAsync<List<PropertyDto>>("api/properties") ?? new();
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not connect to API: {ex.Message}";
+        }
     }
 
     async Task Submit()

@@ -5,6 +5,7 @@
 @inject NavigationManager Nav
 
 <PageTitle>Notice Editor</PageTitle>
+<ApiError Message="@_error" />
 <DisclaimerBanner />
 <MudText Typo="Typo.h5" Class="mb-4">Notice Editor — @_template?.Title</MudText>
 
@@ -29,6 +30,7 @@ else
 }
 
 @code {
+    string? _error;
     [Parameter] public int CaseId { get; set; }
     [Parameter] public string TemplateSlug { get; set; } = "";
 
@@ -40,6 +42,8 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
         _template = await Http.GetFromJsonAsync<EvictionTemplateDto>($"api/evictiontemplates/{TemplateSlug}");
         _case = await Http.GetFromJsonAsync<EvictionCaseDto>($"api/evictioncases/{CaseId}");
 
@@ -53,6 +57,11 @@ else
         if (_template != null && _tenant != null)
         {
             _noticeText = ApplyMerge(_template.Body);
+        }
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not connect to API: {ex.Message}";
         }
     }
 

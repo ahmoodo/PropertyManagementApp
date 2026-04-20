@@ -3,6 +3,7 @@
 @inject NavigationManager Nav
 
 <PageTitle>Rent Records</PageTitle>
+<ApiError Message="@_error" />
 <MudText Typo="Typo.h5" Class="mb-4">Rent Records</MudText>
 
 @if (_tenants == null)
@@ -46,13 +47,21 @@ else
 }
 
 @code {
+    string? _error;
     List<TenantDto>? _tenants;
     List<PropertyDto>? _properties;
 
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
         _tenants = await Http.GetFromJsonAsync<List<TenantDto>>("api/tenants");
         _properties = await Http.GetFromJsonAsync<List<PropertyDto>>("api/properties");
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not connect to API: {ex.Message}";
+        }
     }
 
     string GetProperty(int id) => _properties?.FirstOrDefault(p => p.Id == id)?.Name ?? "—";

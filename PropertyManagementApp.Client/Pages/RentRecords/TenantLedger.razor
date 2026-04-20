@@ -3,6 +3,7 @@
 @inject IJSRuntime JS
 
 <PageTitle>Tenant Ledger</PageTitle>
+<ApiError Message="@_error" />
 
 @if (_tenant == null)
 {
@@ -27,6 +28,7 @@ else
 }
 
 @code {
+    string? _error;
     [Parameter] public int TenantId { get; set; }
 
     TenantDto? _tenant;
@@ -35,6 +37,8 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
         _tenant = await Http.GetFromJsonAsync<TenantDto>($"api/tenants/{TenantId}");
         var schedules = await Http.GetFromJsonAsync<List<RentScheduleDto>>($"api/rentschedules?tenantId={TenantId}");
         var payments = await Http.GetFromJsonAsync<List<RentPaymentDto>>($"api/rentpayments?tenantId={TenantId}");
@@ -61,6 +65,11 @@ else
             _rows.Add(new LedgerRow { Date = e.Date, Description = e.Desc, Charge = e.Charge, Payment = e.Payment, Balance = running });
         }
         _balance = running;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not connect to API: {ex.Message}";
+        }
     }
 
     async Task ExportCsv()

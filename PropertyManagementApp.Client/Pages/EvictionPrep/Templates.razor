@@ -3,6 +3,7 @@
 @inject ISnackbar Snackbar
 
 <PageTitle>Notice Templates</PageTitle>
+<ApiError Message="@_error" />
 <DisclaimerBanner />
 <MudText Typo="Typo.h5" Class="mb-4">Notice Template Library</MudText>
 
@@ -24,11 +25,19 @@ else
 }
 
 @code {
+    string? _error;
     List<EvictionTemplateDto>? _templates;
 
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
         _templates = await Http.GetFromJsonAsync<List<EvictionTemplateDto>>("api/evictiontemplates");
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not connect to API: {ex.Message}";
+        }
     }
 
     async Task UpdateTemplate(EvictionTemplateDto t)

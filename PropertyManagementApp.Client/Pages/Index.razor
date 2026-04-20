@@ -2,6 +2,7 @@
 @inject HttpClient Http
 
 <PageTitle>Dashboard</PageTitle>
+<ApiError Message="@_error" />
 <MudText Typo="Typo.h5" Class="mb-4">Dashboard</MudText>
 
 <MudGrid>
@@ -48,6 +49,7 @@
 </MudStack>
 
 @code {
+    string? _error;
     decimal _totalDue;
     decimal _collected;
     int _delinquent;

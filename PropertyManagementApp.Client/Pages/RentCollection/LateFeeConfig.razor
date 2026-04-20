@@ -3,6 +3,7 @@
 @inject ISnackbar Snackbar
 
 <PageTitle>Late Fee Policy</PageTitle>
+<ApiError Message="@_error" />
 <MudText Typo="Typo.h5" Class="mb-4">Late Fee Configuration</MudText>
 
 @if (_policy == null)
@@ -32,11 +33,19 @@ else
 }
 
 @code {
+    string? _error;
     LateFeePolicy? _policy;
 
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
         _policy = await Http.GetFromJsonAsync<LateFeePolicy>("api/latefeepolicies");
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not connect to API: {ex.Message}";
+        }
     }
 
     async Task Save()

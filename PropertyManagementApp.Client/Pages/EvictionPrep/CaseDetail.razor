@@ -4,6 +4,7 @@
 @inject ISnackbar Snackbar
 
 <PageTitle>Eviction Case Detail</PageTitle>
+<ApiError Message="@_error" />
 <DisclaimerBanner />
 
 @if (_case == null)
@@ -73,12 +74,20 @@ else
 }
 
 @code {
+    string? _error;
     [Parameter] public int CaseId { get; set; }
     EvictionCaseDto? _case;
 
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
         _case = await Http.GetFromJsonAsync<EvictionCaseDto>($"api/evictioncases/{CaseId}");
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not connect to API: {ex.Message}";
+        }
     }
 
     async Task ToggleStep(EvictionStepDto step)

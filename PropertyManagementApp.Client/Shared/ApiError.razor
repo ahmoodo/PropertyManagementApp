@@ -1,0 +1,17 @@
+@* shows a friendly error when the API is unreachable *@
+
+@if (!string.IsNullOrEmpty(Message))
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">
+        <MudText Typo="Typo.subtitle2">Could not reach the API server</MudText>
+        <MudText Typo="Typo.body2">@Message</MudText>
+        <MudText Typo="Typo.caption" Class="mt-2">
+            Make sure <b>PropertyManagementApp.Api</b> is running on <b>http://localhost:5001</b>
+            and then refresh the page.
+        </MudText>
+    </MudAlert>
+}
+
+@code {
+    [Parameter] public string? Message { get; set; }
+}

@@ -2,6 +2,7 @@
 @inject HttpClient Http
 
 <PageTitle>Property Ledger</PageTitle>
+<ApiError Message="@_error" />
 
 @if (_property == null)
 {
@@ -44,6 +45,7 @@ else
 }
 
 @code {
+    string? _error;
     [Parameter] public int PropertyId { get; set; }
     PropertyDto? _property;
     List<LedgerRow>? _rows;
@@ -51,6 +53,8 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        try
+        {
         _property = await Http.GetFromJsonAsync<PropertyDto>($"api/properties/{PropertyId}");
         var schedules = await Http.GetFromJsonAsync<List<RentScheduleDto>>($"api/rentschedules?propertyId={PropertyId}");
         var tenantIds = (schedules ?? new()).Select(s => s.TenantId).Distinct().ToList();
@@ -79,6 +83,11 @@ else
         {
             running -= p.AmountPaid;
             _rows.Add(new LedgerRow { Date = p.PaymentDate, Description = $"{p.PaymentMethod} Payment", Charge = 0, Payment = p.AmountPaid, Balance = running });
+        }
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not connect to API: {ex.Message}";
         }
     }
 }
