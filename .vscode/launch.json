@@ -1,0 +1,31 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch API",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "${workspaceFolder}/PropertyManagementApp.Api/bin/Debug/net8.0/PropertyManagementApp.Api.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/PropertyManagementApp.Api",
+      "stopAtEntry": false,
+      "env": { "ASPNETCORE_ENVIRONMENT": "Development" }
+    },
+    {
+      "name": "Launch Client",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "${workspaceFolder}/PropertyManagementApp.Client/bin/Debug/net8.0/PropertyManagementApp.Client.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/PropertyManagementApp.Client",
+      "stopAtEntry": false,
+      "env": { "ASPNETCORE_ENVIRONMENT": "Development" }
+    }
+  ],
+  "compounds": [
+    {
+      "name": "API + Client",
+      "configurations": ["Launch API", "Launch Client"]
+    }
+  ]
+}
