@@ -1,0 +1,137 @@
+@page "/invoicing/{InvoiceId:int}/edit"
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Edit Invoice</PageTitle>
+<ApiError Message="@_error" />
+<MudText Typo="Typo.h5" Class="mb-4">Edit Invoice @_invoice?.InvoiceNumber</MudText>
+
+@if (_invoice == null)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (_invoice.Status != "Draft")
+{
+    <MudAlert Severity="Severity.Warning">
+        Only <b>Draft</b> invoices can be edited. This invoice is currently <b>@_invoice.Status</b>.
+        <MudButton Class="ml-2" Variant="Variant.Outlined" Size="Size.Small"
+                   OnClick="@(() => Nav.NavigateTo($"/invoicing/{InvoiceId}"))">View Detail</MudButton>
+    </MudAlert>
+}
+else
+{
+    <MudTabs Elevation="1" Rounded="true" @bind-ActivePanelIndex="_tab">
+        <MudTabPanel Text="1. Header">
+            <MudGrid Class="mt-3">
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_invoice.CustomerName" Label="Customer Name" Class="mb-3" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_invoice.PropertyAddress" Label="Property Address" Class="mb-3" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudDatePicker @bind-Date="_invoiceDate" Label="Invoice Date" Class="mb-3" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudDatePicker @bind-Date="_dueDate" Label="Due Date" Class="mb-3" />
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+
+        <MudTabPanel Text="2. Line Items">
+            <div class="mt-3">
+                <LineItemsEditor Items="@_invoice.LineItems" />
+            </div>
+        </MudTabPanel>
+
+        <MudTabPanel Text="3. Tax & Total">
+            <MudGrid Class="mt-3">
+                <MudItem xs="12" md="4">
+                    <MudNumericField @bind-Value="_invoice.TaxRate" Label="Tax Rate (%)" Min="0m" Max="100m" Format="F2" Class="mb-3" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudNumericField @bind-Value="_invoice.Discount" Label="Discount ($)" Min="0m" Format="F2" Class="mb-3" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.h6">Subtotal: @_invoice.Subtotal.ToString("C")</MudText>
+                    <MudText>Tax: @_invoice.TaxAmount.ToString("C")</MudText>
+                    <MudText>Discount: -@_invoice.Discount.ToString("C")</MudText>
+                    <MudText Typo="Typo.h5"><b>Total: @_invoice.TotalAmount.ToString("C")</b></MudText>
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+
+        <MudTabPanel Text="4. Notes">
+            <MudTextField @bind-Value="_invoice.Notes" Label="Notes / Terms" Lines="4" Class="mt-3 mb-3" />
+        </MudTabPanel>
+    </MudTabs>
+
+    <MudStack Row="true" Class="mt-4">
+        <MudButton Variant="Variant.Outlined" OnClick="@(() => Nav.NavigateTo($"/invoicing/{InvoiceId}"))">Cancel</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="SaveDraft" Class="ml-2">Save Draft</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAndSend" Class="ml-2">Save & Send</MudButton>
+    </MudStack>
+}
+
+@code {
+    string? _error;
+    [Parameter] public int InvoiceId { get; set; }
+    int _tab = 0;
+    InvoiceDto? _invoice;
+    DateTime? _invoiceDate;
+    DateTime? _dueDate;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _invoice = await Http.GetFromJsonAsync<InvoiceDto>($"api/invoices/{InvoiceId}");
+            if (_invoice != null)
+            {
+                _invoiceDate = _invoice.InvoiceDate;
+                _dueDate = _invoice.DueDate;
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not connect to API: {ex.Message}";
+        }
+    }
+
+    async Task SaveDraft()
+    {
+        if (_invoice == null) return;
+        ApplyDates();
+        var resp = await Http.PutAsJsonAsync($"api/invoices/{InvoiceId}", _invoice);
+        if (resp.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Draft updated!", Severity.Success);
+            Nav.NavigateTo($"/invoicing/{InvoiceId}");
+        }
+        else
+        {
+            Snackbar.Add("Failed to save draft.", Severity.Error);
+        }
+    }
+
+    async Task SaveAndSend()
+    {
+        if (_invoice == null) return;
+        ApplyDates();
+        var resp = await Http.PutAsJsonAsync($"api/invoices/{InvoiceId}", _invoice);
+        if (resp.IsSuccessStatusCode)
+        {
+            await Http.PostAsync($"api/invoices/{InvoiceId}/send", null);
+            Snackbar.Add("Invoice updated and sent!", Severity.Success);
+            Nav.NavigateTo($"/invoicing/{InvoiceId}");
+        }
+    }
+
+    void ApplyDates()
+    {
+        if (_invoice == null) return;
+        if (_invoiceDate.HasValue) _invoice.InvoiceDate = _invoiceDate.Value;
+        if (_dueDate.HasValue) _invoice.DueDate = _dueDate.Value;
+    }
+}

@@ -16,5 +16,6 @@ builder.Services.AddScoped(sp => new HttpClient
 
 builder.Services.AddMudServices();
 builder.Services.AddScoped<NotificationService>();
+builder.Services.AddScoped<ApiClient>();
 
 await builder.Build().RunAsync();

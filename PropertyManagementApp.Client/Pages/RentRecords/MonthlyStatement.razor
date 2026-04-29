@@ -2,6 +2,9 @@
 @inject HttpClient Http
 @inject IJSRuntime JS
 
+<PageTitle>Monthly Statement</PageTitle>
+<ApiError Message="@_error" />
+
 <div class="print-only">
     @if (_tenant != null && _schedule != null)
     {

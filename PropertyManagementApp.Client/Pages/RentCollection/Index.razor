@@ -35,14 +35,14 @@
 </MudGrid>
 
 <MudStack Row="true" Class="mb-3" Wrap="Wrap.Wrap">
-    <MudSelect T="string" Label="Status Filter" @bind-Value="_statusFilter" Style="min-width:160px;" Dense="true" Variant="Variant.Outlined">
+    <MudSelect T="string" Label="Status Filter" @bind-Value="_statusFilter" Style="min-width:160px;" Margin="Margin.Dense" Variant="Variant.Outlined">
         <MudSelectItem Value="@("All")">All</MudSelectItem>
         <MudSelectItem Value="@("Paid")">Paid</MudSelectItem>
         <MudSelectItem Value="@("Unpaid")">Unpaid</MudSelectItem>
         <MudSelectItem Value="@("Late")">Late</MudSelectItem>
         <MudSelectItem Value="@("Partial")">Partial</MudSelectItem>
     </MudSelect>
-    <MudTextField @bind-Value="_searchText" Placeholder="Search tenant..." Variant="Variant.Outlined" Dense="true"
+    <MudTextField @bind-Value="_searchText" Placeholder="Search tenant..." Variant="Variant.Outlined" Margin="Margin.Dense"
                   Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" />
     <MudButton Href="/rent-collection/latefee" Variant="Variant.Outlined" Color="Color.Secondary" Size="Size.Small">Late Fee Policy</MudButton>
 </MudStack>
@@ -76,7 +76,7 @@ else
                                OnClick="@(() => Nav.NavigateTo($"/rent-collection/{tid}"))" />
                 @{var sched = context;}
                 <MudIconButton Icon="@Icons.Material.Filled.Send" Size="Size.Small" Color="Color.Info"
-                               OnClick="@(() => SendReminder(sched))" Title="Send Reminder" />
+                               OnClick="@(() => SendReminder(sched))" />
             </MudTd>
         </RowTemplate>
     </MudTable>

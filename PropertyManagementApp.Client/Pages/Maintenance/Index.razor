@@ -41,12 +41,12 @@ else
                                 @if (status == "Bid")
                                 {
                                     <MudIconButton Icon="@Icons.Material.Filled.ThumbUp" Size="Size.Small" Color="Color.Success"
-                                                   OnClick="@(() => AdvanceStatus(localProj, "Approved"))" Title="Approve Bid" />
+                                                   OnClick="@(() => AdvanceStatus(localProj, "Approved"))" />
                                 }
                                 @if (status == "Approved")
                                 {
                                     <MudIconButton Icon="@Icons.Material.Filled.Assignment" Size="Size.Small" Color="Color.Warning"
-                                                   OnClick="@(() => AdvanceStatus(localProj, "Work Order"))" Title="Create Work Order" />
+                                                   OnClick="@(() => AdvanceStatus(localProj, "Work Order"))" />
                                 }
                             </MudCardActions>
                         </MudCard>

@@ -1,0 +1,57 @@
+@* Before / During / After photo grid component *@
+
+<MudGrid>
+    @foreach (var category in _categories)
+    {
+        var photos = (Photos ?? new()).Where(p => p.PhotoCategory == category && !string.IsNullOrEmpty(p.ProofPhotoUrl)).ToList();
+        <MudItem xs="12" md="4">
+            <MudCard>
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.subtitle2"><b>@category</b> (@photos.Count)</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    @if (!photos.Any())
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">No @category.ToLower() photos.</MudText>
+                    }
+                    else
+                    {
+                        <MudStack Row="true" Wrap="Wrap.Wrap">
+                            @foreach (var p in photos)
+                            {
+                                <MudPaper Class="pa-1" Style="width:90px; height:90px; overflow:hidden;">
+                                    <img src="@p.ProofPhotoUrl" alt="@category" style="width:100%; height:100%; object-fit:cover;" />
+                                </MudPaper>
+                            }
+                        </MudStack>
+                    }
+                </MudCardContent>
+                @if (AllowUpload)
+                {
+                    <MudCardActions>
+                        <InputFile OnChange="@(e => HandleUpload(e, category))" accept="image/*" />
+                    </MudCardActions>
+                }
+            </MudCard>
+        </MudItem>
+    }
+</MudGrid>
+
+@code {
+    [Parameter] public List<WorkLogDto>? Photos { get; set; }
+    [Parameter] public bool AllowUpload { get; set; } = false;
+    [Parameter] public EventCallback<(IBrowserFile File, string Category)> OnUpload { get; set; }
+
+    static readonly string[] _categories = { "Before", "During", "After" };
+
+    async Task HandleUpload(InputFileChangeEventArgs e, string category)
+    {
+        var file = e.File;
+        if (OnUpload.HasDelegate && file != null)
+        {
+            await OnUpload.InvokeAsync((file, category));
+        }
+    }
+}

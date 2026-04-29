@@ -73,6 +73,9 @@
             if (projects != null)
                 _openMaintenance = projects.Count(p => p.Status != "Closed");
         }
-        catch { /* fail silently on dashboard */ }
+        catch (Exception ex)
+        {
+            _error = $"Could not connect to API: {ex.Message}";
+        }
     }
 }

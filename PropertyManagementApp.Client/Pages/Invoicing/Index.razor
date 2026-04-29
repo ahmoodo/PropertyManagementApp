@@ -65,13 +65,15 @@ else
                                OnClick="@(() => Nav.NavigateTo($"/invoicing/{context.Id}"))" />
                 @if (context.Status == "Draft")
                 {
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Secondary"
+                                   OnClick="@(() => Nav.NavigateTo($"/invoicing/{context.Id}/edit"))" />
                     <MudIconButton Icon="@Icons.Material.Filled.Send" Size="Size.Small" Color="Color.Info"
-                                   OnClick="@(() => SendInvoice(context))" Title="Send" />
+                                   OnClick="@(() => SendInvoice(context))" />
                 }
                 @if (context.Status is "Sent" or "Overdue")
                 {
                     <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Color="Color.Success"
-                                   OnClick="@(() => MarkPaid(context))" Title="Mark Paid" />
+                                   OnClick="@(() => MarkPaid(context))" />
                 }
             </MudTd>
         </RowTemplate>

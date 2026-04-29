@@ -5,6 +5,7 @@
 @inject ISnackbar Snackbar
 
 <PageTitle>Work Log Entry</PageTitle>
+<ApiError Message="@_error" />
 <MudText Typo="Typo.h5" Class="mb-4">Log Work — Project #@ProjectId</MudText>
 
 <MudCard Style="max-width:600px;">
@@ -35,6 +36,7 @@
 </MudCard>
 
 @code {
+    string? _error;
     [Parameter] public int ProjectId { get; set; }
     WorkLogDto _log = new();
     DateTime? _clockInDate = DateTime.Today;
@@ -65,11 +67,22 @@
         if (_clockOutDate.HasValue && _clockOutTime.HasValue)
             _log.ClockOut = _clockOutDate.Value.Date + _clockOutTime.Value;
 
-        var resp = await Http.PostAsJsonAsync("api/worklogs", _log);
-        if (resp.IsSuccessStatusCode)
+        try
         {
-            Snackbar.Add("Work log saved!", Severity.Success);
-            Nav.NavigateTo($"/maintenance/{ProjectId}");
+            var resp = await Http.PostAsJsonAsync("api/worklogs", _log);
+            if (resp.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Work log saved!", Severity.Success);
+                Nav.NavigateTo($"/maintenance/{ProjectId}");
+            }
+            else
+            {
+                Snackbar.Add("Failed to save work log.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = $"Could not connect to API: {ex.Message}";
         }
     }
 

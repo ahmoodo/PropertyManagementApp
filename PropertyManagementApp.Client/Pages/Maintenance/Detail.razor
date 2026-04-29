@@ -64,6 +64,51 @@ else
             <MudCard>
                 <MudCardHeader>
                     <CardHeaderContent>
+                        <MudText Typo="Typo.subtitle1">Photo Gallery</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <PhotoGallery Photos="@_workLogs" />
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudCard>
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.subtitle1">Completion Checklist</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudList T="ChecklistItem" Dense="true">
+                        @foreach (var item in _checklist)
+                        {
+                            var local = item;
+                            <MudListItem T="ChecklistItem">
+                                <MudCheckBox T="bool" Value="@local.Done"
+                                             ValueChanged="@((bool v) => { local.Done = v; })"
+                                             Label="@local.Label"
+                                             Color="Color.Success" />
+                            </MudListItem>
+                        }
+                    </MudList>
+                    @if (_checklist.All(x => x.Done) && _project.Status != "Invoiced" && _project.Status != "Closed")
+                    {
+                        <MudAlert Severity="Severity.Success" Class="mt-2">
+                            All checklist items complete — project is ready to be Invoiced.
+                            <MudButton Class="ml-2" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                       OnClick="@(() => HandleStatusChange("Invoiced"))">Mark Invoiced</MudButton>
+                        </MudAlert>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudCard>
+                <MudCardHeader>
+                    <CardHeaderContent>
                         <MudText Typo="Typo.subtitle1">Work Logs</MudText>
                     </CardHeaderContent>
                     <CardHeaderActions>
@@ -107,6 +152,23 @@ else
     [Parameter] public int ProjectId { get; set; }
     MaintenanceProjectDto? _project;
     List<WorkLogDto>? _workLogs;
+
+    class ChecklistItem
+    {
+        public string Label { get; set; } = "";
+        public bool Done { get; set; }
+    }
+
+    List<ChecklistItem> _checklist = new()
+    {
+        new ChecklistItem { Label = "Bid approved by owner" },
+        new ChecklistItem { Label = "Vendor scheduled and confirmed" },
+        new ChecklistItem { Label = "Before photos captured" },
+        new ChecklistItem { Label = "Work completed and verified" },
+        new ChecklistItem { Label = "After photos captured" },
+        new ChecklistItem { Label = "Materials and hours logged" },
+        new ChecklistItem { Label = "Tenant notified (if applicable)" },
+    };
 
     protected override async Task OnInitializedAsync()
     {

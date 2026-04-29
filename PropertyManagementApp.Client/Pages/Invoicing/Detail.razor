@@ -43,8 +43,10 @@ else
             <InvoiceStatusBadge Status="@_invoice.Status" />
             <MudSpacer />
             <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Print" OnClick="Print">Print</MudButton>
-            @if (_invoice.Status == "Draft" || _invoice.Status == "Sent")
+            @if (_invoice.Status == "Draft")
             {
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Edit"
+                           Href="@($"/invoicing/{InvoiceId}/edit")" Class="ml-2">Edit</MudButton>
                 <MudButton Variant="Variant.Outlined" Color="Color.Info" OnClick="Send" Class="ml-2">Send Invoice</MudButton>
             }
             @if (_invoice.Status is "Sent" or "Overdue")

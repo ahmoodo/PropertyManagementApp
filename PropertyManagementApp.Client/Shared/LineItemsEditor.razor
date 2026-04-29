@@ -11,20 +11,20 @@
     </HeaderContent>
     <RowTemplate>
         <MudTd>
-            <MudTextField @bind-Value="context.Description" Variant="Variant.Text" Dense="true" />
+            <MudTextField @bind-Value="context.Description" Variant="Variant.Text" Margin="Margin.Dense" />
         </MudTd>
         <MudTd>
-            <MudSelect @bind-Value="context.Type" Dense="true" Variant="Variant.Text">
+            <MudSelect @bind-Value="context.Type" Margin="Margin.Dense" Variant="Variant.Text">
                 <MudSelectItem Value="@("Labor")">Labor</MudSelectItem>
                 <MudSelectItem Value="@("Material")">Material</MudSelectItem>
                 <MudSelectItem Value="@("Other")">Other</MudSelectItem>
             </MudSelect>
         </MudTd>
         <MudTd>
-            <MudNumericField @bind-Value="context.Quantity" Min="0.01m" Dense="true" Variant="Variant.Text" />
+            <MudNumericField @bind-Value="context.Quantity" Min="0.01m" Margin="Margin.Dense" Variant="Variant.Text" />
         </MudTd>
         <MudTd>
-            <MudNumericField @bind-Value="context.UnitPrice" Min="0m" Dense="true" Variant="Variant.Text" Format="F2" />
+            <MudNumericField @bind-Value="context.UnitPrice" Min="0m" Margin="Margin.Dense" Variant="Variant.Text" Format="F2" />
         </MudTd>
         <MudTd>@context.Total.ToString("C")</MudTd>
         <MudTd>
