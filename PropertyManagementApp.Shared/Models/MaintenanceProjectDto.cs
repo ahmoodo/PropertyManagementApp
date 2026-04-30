@@ -1,8 +1,11 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace PropertyManagementApp.Shared.Models;
 
 public class MaintenanceProjectDto
 {
     public int Id { get; set; }
+    [Required]
     public string Title { get; set; } = "";
     public string Description { get; set; } = "";
     public int PropertyId { get; set; }

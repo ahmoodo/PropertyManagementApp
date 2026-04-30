@@ -8,13 +8,13 @@ namespace PropertyManagementApp.Api.Controllers;
 [Route("api/[controller]")]
 public class CommunicationsController : ControllerBase
 {
-    private readonly InMemoryDataStore _store;
-    public CommunicationsController(InMemoryDataStore store) => _store = store;
+    private readonly AppDbContext _db;
+    public CommunicationsController(AppDbContext db) => _db = db;
 
     [HttpGet]
     public IActionResult GetAll([FromQuery] int? tenantId)
     {
-        var query = _store.CommunicationLogs.AsEnumerable();
+        IQueryable<CommunicationLogDto> query = _db.CommunicationLogs;
         if (tenantId.HasValue)
             query = query.Where(x => x.TenantId == tenantId.Value);
         return Ok(query.OrderByDescending(x => x.SentAt).ToList());
@@ -23,11 +23,12 @@ public class CommunicationsController : ControllerBase
     [HttpPost]
     public IActionResult Create([FromBody] CommunicationLogDto dto)
     {
-        dto.Id = _store.NextId();
+        dto.Id = 0;
         dto.SentAt = DateTime.Now;
-        dto.SentBy = "Gongjun Yan";
+        dto.SentBy = "Property Manager";
         dto.Status = "Sent";
-        _store.CommunicationLogs.Add(dto);
+        _db.CommunicationLogs.Add(dto);
+        _db.SaveChanges();
         return Ok(dto);
     }
 }

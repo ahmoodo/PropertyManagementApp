@@ -8,13 +8,13 @@ namespace PropertyManagementApp.Api.Controllers;
 [Route("api/[controller]")]
 public class RentPaymentsController : ControllerBase
 {
-    private readonly InMemoryDataStore _store;
-    public RentPaymentsController(InMemoryDataStore store) => _store = store;
+    private readonly AppDbContext _db;
+    public RentPaymentsController(AppDbContext db) => _db = db;
 
     [HttpGet]
     public IActionResult GetAll([FromQuery] int? tenantId)
     {
-        var query = _store.RentPayments.AsEnumerable();
+        IQueryable<RentPaymentDto> query = _db.RentPayments;
         if (tenantId.HasValue)
             query = query.Where(x => x.TenantId == tenantId.Value);
         return Ok(query.ToList());
@@ -23,19 +23,20 @@ public class RentPaymentsController : ControllerBase
     [HttpPost]
     public IActionResult Create([FromBody] RentPaymentDto dto)
     {
-        dto.Id = _store.NextId();
+        dto.Id = 0;
         dto.PaymentDate = DateTime.Now;
-        _store.RentPayments.Add(dto);
+        _db.RentPayments.Add(dto);
+        _db.SaveChanges();
 
-        // update the schedule status
-        var sched = _store.RentSchedules.FirstOrDefault(x => x.Id == dto.RentScheduleId);
+        var sched = _db.RentSchedules.FirstOrDefault(x => x.Id == dto.RentScheduleId);
         if (sched != null)
         {
-            decimal total = _store.RentPayments
+            decimal total = _db.RentPayments
                 .Where(p => p.RentScheduleId == sched.Id)
                 .Sum(p => p.AmountPaid);
             decimal owed = sched.BaseRent + sched.LateFee;
             sched.Status = total >= owed ? "Paid" : "Partial";
+            _db.SaveChanges();
         }
 
         return Ok(dto);

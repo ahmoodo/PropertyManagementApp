@@ -8,28 +8,30 @@ namespace PropertyManagementApp.Api.Controllers;
 [Route("api/[controller]")]
 public class LateFeePoliciesController : ControllerBase
 {
-    private readonly InMemoryDataStore _store;
-    public LateFeePoliciesController(InMemoryDataStore store) => _store = store;
+    private readonly AppDbContext _db;
+    public LateFeePoliciesController(AppDbContext db) => _db = db;
 
     [HttpGet("{id}")]
     public IActionResult Get(int id)
     {
-        var p = _store.LateFeePolicies.FirstOrDefault(x => x.Id == id);
+        var p = _db.LateFeePolicies.FirstOrDefault(x => x.Id == id);
         if (p == null) return NotFound();
         return Ok(p);
     }
 
     [HttpGet]
-    public IActionResult GetFirst() => Ok(_store.LateFeePolicies.FirstOrDefault());
+    public IActionResult GetFirst() => Ok(_db.LateFeePolicies.FirstOrDefault());
 
     [HttpPut("{id}")]
     public IActionResult Update(int id, [FromBody] LateFeePolicy dto)
     {
-        var existing = _store.LateFeePolicies.FirstOrDefault(x => x.Id == id);
+        var existing = _db.LateFeePolicies.FirstOrDefault(x => x.Id == id);
         if (existing == null) return NotFound();
-        var idx = _store.LateFeePolicies.IndexOf(existing);
-        dto.Id = id;
-        _store.LateFeePolicies[idx] = dto;
-        return Ok(dto);
+        existing.GracePeriodDays = dto.GracePeriodDays;
+        existing.FeeType = dto.FeeType;
+        existing.FeeValue = dto.FeeValue;
+        existing.PerDayAccrual = dto.PerDayAccrual;
+        _db.SaveChanges();
+        return Ok(existing);
     }
 }

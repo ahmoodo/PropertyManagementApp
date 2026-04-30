@@ -8,10 +8,10 @@ var builder = WebAssemblyHostBuilder.CreateDefault(args);
 builder.RootComponents.Add<App>("#app");
 builder.RootComponents.Add<HeadOutlet>("head::after");
 
-// point to the API - in production you'd read this from config
+var apiBaseUrl = builder.Configuration["ApiBaseUrl"] ?? "http://localhost:5001/";
 builder.Services.AddScoped(sp => new HttpClient
 {
-    BaseAddress = new Uri("http://localhost:5001/")
+    BaseAddress = new Uri(apiBaseUrl)
 });
 
 builder.Services.AddMudServices();

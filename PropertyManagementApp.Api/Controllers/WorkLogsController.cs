@@ -8,13 +8,13 @@ namespace PropertyManagementApp.Api.Controllers;
 [Route("api/[controller]")]
 public class WorkLogsController : ControllerBase
 {
-    private readonly InMemoryDataStore _store;
-    public WorkLogsController(InMemoryDataStore store) => _store = store;
+    private readonly AppDbContext _db;
+    public WorkLogsController(AppDbContext db) => _db = db;
 
     [HttpGet]
     public IActionResult GetAll([FromQuery] int? projectId)
     {
-        var query = _store.WorkLogs.AsEnumerable();
+        IQueryable<WorkLogDto> query = _db.WorkLogs;
         if (projectId.HasValue)
             query = query.Where(x => x.ProjectId == projectId.Value);
         return Ok(query.ToList());
@@ -23,19 +23,20 @@ public class WorkLogsController : ControllerBase
     [HttpPost]
     public IActionResult Create([FromBody] WorkLogDto dto)
     {
-        dto.Id = _store.NextId();
-        _store.WorkLogs.Add(dto);
+        dto.Id = 0;
+        _db.WorkLogs.Add(dto);
+        _db.SaveChanges();
         return Ok(dto);
     }
 
     [HttpPost("{id}/photos")]
     public IActionResult UploadPhoto(int id, [FromBody] PhotoUploadDto upload)
     {
-        var log = _store.WorkLogs.FirstOrDefault(x => x.Id == id);
+        var log = _db.WorkLogs.FirstOrDefault(x => x.Id == id);
         if (log == null) return NotFound();
-        // in real app this would go to blob storage, here we just accept the base64
         log.ProofPhotoUrl = upload.DataUrl;
         log.PhotoCategory = upload.Category;
+        _db.SaveChanges();
         return Ok(new { url = upload.DataUrl });
     }
 }

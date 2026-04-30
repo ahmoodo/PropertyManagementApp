@@ -74,7 +74,7 @@ else
             .Replace("{{RentAmountDue}}", _schedule != null ? (_schedule.BaseRent + _schedule.LateFee).ToString("C") : "N/A")
             .Replace("{{DueDate}}", _schedule != null ? _schedule.DueDate.ToString("MMMM d, yyyy") : "N/A")
             .Replace("{{NoticeDate}}", DateTime.Today.ToString("MMMM d, yyyy"))
-            .Replace("{{LandlordName}}", "Gongjun Yan")
+            .Replace("{{LandlordName}}", "Property Manager")
             .Replace("{{QuitByDate}}", DateTime.Today.AddDays(3).ToString("MMMM d, yyyy"));
     }
 

@@ -1,10 +1,14 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace PropertyManagementApp.Shared.Models;
 
 public class InvoiceDto
 {
     public int Id { get; set; }
+    [Required]
     public string InvoiceNumber { get; set; } = "";
     public int? TenantId { get; set; }
+    [Required]
     public string CustomerName { get; set; } = "";
     public int? PropertyId { get; set; }
     public string PropertyAddress { get; set; } = "";

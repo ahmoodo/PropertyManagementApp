@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using PropertyManagementApp.Api.Data;
+using PropertyManagementApp.Shared.Models;
 using System.Text;
 
 namespace PropertyManagementApp.Api.Controllers;
@@ -8,8 +9,8 @@ namespace PropertyManagementApp.Api.Controllers;
 [Route("api/[controller]")]
 public class RentRecordsController : ControllerBase
 {
-    private readonly InMemoryDataStore _store;
-    public RentRecordsController(InMemoryDataStore store) => _store = store;
+    private readonly AppDbContext _db;
+    public RentRecordsController(AppDbContext db) => _db = db;
 
     [HttpGet("export")]
     public IActionResult Export([FromQuery] int? tenantId, [FromQuery] int? propertyId, [FromQuery] string format = "csv")
@@ -17,8 +18,8 @@ public class RentRecordsController : ControllerBase
         var sb = new StringBuilder();
         sb.AppendLine("Date,Description,Charge,Payment,Balance");
 
-        var schedules = _store.RentSchedules.AsEnumerable();
-        var payments = _store.RentPayments.AsEnumerable();
+        IQueryable<RentScheduleDto> schedules = _db.RentSchedules;
+        IQueryable<RentPaymentDto> payments = _db.RentPayments;
 
         if (tenantId.HasValue)
         {
